@@ -1,0 +1,8 @@
+name = "kaamwala-proxy"
+main = "supabase-proxy.js"
+compatibility_date = "2026-01-01"
+
+# Route: api.kaamwala.com -> this worker (add zone after domain setup)
+[routes]
+pattern = "api.kaamwala.com/*"
+zone_name = "kaamwala.com"

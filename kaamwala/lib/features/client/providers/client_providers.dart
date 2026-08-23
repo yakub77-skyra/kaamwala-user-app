@@ -1,0 +1,71 @@
+/// Client-side Riverpod providers.
+library;
+
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import 'package:kaamwala/core/constants/app_constants.dart';
+import 'package:kaamwala/core/error/failure.dart';
+import 'package:kaamwala/features/auth/providers/auth_controller.dart';
+import 'package:kaamwala/features/client/repositories/bookings_repository.dart';
+import 'package:kaamwala/features/client/repositories/chat_repository.dart';
+import 'package:kaamwala/features/client/repositories/workers_repository.dart';
+import 'package:kaamwala/models/booking.dart';
+import 'package:kaamwala/models/worker.dart';
+import 'package:kaamwala/services/supabase_service.dart';
+
+final workersRepoProvider = Provider((_) => const WorkersRepository());
+final bookingsRepoProvider = Provider((_) => const BookingsRepository());
+final reviewsRepoProvider = Provider((_) => const ReviewsRepository());
+final chatRepoProvider = Provider((_) => const ChatRepository());
+
+class WorkersState {
+  const WorkersState({this.workers = const [], this.loading = false});
+  final List<Worker> workers;
+  final bool loading;
+}
+
+class WorkersController extends AutoDisposeFamilyNotifier<WorkersState, ServiceCategory> {
+  @override
+  WorkersState build(ServiceCategory arg) => const WorkersState();
+
+  Future<void> load({String? city}) async {
+    state = WorkersState(workers: state.workers, loading: true);
+    final result =
+        await ref.read(workersRepoProvider).search(category: arg, city: city);
+    state = switch (result) {
+      Success(:final data) => WorkersState(workers: data),
+      _ => const WorkersState(),
+    };
+  }
+}
+
+final workersByCategoryProvider = NotifierProvider.autoDispose
+    .family<WorkersController, WorkersState, ServiceCategory>(
+        WorkersController.new);
+
+/// Selected category on Home (C5 -> C6 navigation payload).
+final selectedCategoryProvider =
+    StateProvider<ServiceCategory>((_) => ServiceCategory.plumber);
+
+class MyBookingsController extends AsyncNotifier<List<Booking>> {
+  @override
+  Future<List<Booking>> build() async {
+    final profile = ref.watch(authControllerProvider).profile;
+    final uid = profile?.id ?? SupabaseService.currentUserId;
+    if (uid == null) return [];
+    final result = await ref.read(bookingsRepoProvider).forClient(uid);
+    return switch (result) {
+      Success(:final data) => data,
+      Error() => [],
+    };
+  }
+
+  Future<void> refresh() async {
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(() async => build());
+  }
+}
+
+final myBookingsProvider =
+    AsyncNotifierProvider<MyBookingsController, List<Booking>>(
+        MyBookingsController.new);
