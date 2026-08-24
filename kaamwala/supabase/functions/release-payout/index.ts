@@ -1,132 +1,232 @@
-// Edge Function: release-payout (FR-PAY-03 / NFR-SEC-10)
-// Double-payout prevention: checks order is PAID, no existing payout,
-// client_confirmed = true. Then pays worker via Razorpay X.
-import { fail, json, preflight, rzpXPayout } from '../_shared/utils.ts';
-import { createClient } from 'npm:@supabase/supabase-js@2';
+/**
+ * release-payout — client confirms completion; worker gets paid (Phase 3 section 9).
+ *
+ * body: { booking_id, action: "confirm" }
+ *
+ * Flow:
+ *   1. Caller must be the booking's client; booking must be completed.
+ *   2. Sets client_confirmed = true (gates payout).
+ *   3. Creates the PENDING payouts row (idempotent, 1 per booking).
+ *   4. If Razorpay X keys are configured: ensures contact + fund account
+ *      (cached on worker_payment_info), fires a UPI payout and records
+ *      processing/success. Otherwise leaves it PENDING for ops.
+ */
+import { callerUid, serviceClient } from "./_shared/db.ts";
+import { fail, json } from "./_shared/http.ts";
+import {
+  rzpRequest,
+  type RzpContact,
+  type RzpFundAccount,
+  type RzpPayout,
+} from "./_shared/razorpay.ts";
+
+interface BookingRow {
+  id: string;
+  ref: string;
+  client_id: string;
+  status: string;
+  client_confirmed: boolean;
+  worker_id: string;
+  worker_earning: number | string | null;
+}
+
+interface PaymentInfoRow {
+  user_id: string;
+  payout_method: string;
+  upi_id: string | null;
+  rzp_contact_id: string | null;
+  rzp_fund_account_id: string | null;
+}
+
+function xpConfigured(): boolean {
+  return !!Deno.env.get("RZPX_KEY_ID") && !!Deno.env.get("RZPX_KEY_SECRET");
+}
 
 Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') return preflight();
-  if (req.method !== 'POST') return fail('method not allowed', 405);
-
-  const authHeader = req.headers.get('Authorization') ?? '';
-  const supabaseAnon = createClient(
-    Deno.env.get('SUPABASE_URL')!,
-    Deno.env.get('SUPABASE_ANON_KEY')!,
-    { global: { headers: { Authorization: authHeader } } },
-  );
-  const { data: authUser } = await supabaseAnon.auth.getUser();
-  if (!authUser?.user) return fail('unauthorized', 401);
-
-  const { booking_id: bookingId, action } = await req.json().catch(() => ({}) as any);
-  if (!bookingId) return fail('booking_id required');
-
-  const admin = createClient(
-    Deno.env.get('SUPABASE_URL')!,
-    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-  );
-
-  // Action "confirm": client confirms completion -> unlocks payout.
-  if (action === 'confirm') {
-    const { data: booking } = await admin
-      .from('bookings')
-      .update({ client_confirmed: true })
-      .eq('id', bookingId)
-      .eq('client_id', authUser.user.id)
-      .eq('status', 'completed')
-      .select()
-      .single();
-    if (!booking) return fail('cannot confirm this booking');
-    return json({ confirmed: true });
+  if (req.method === "OPTIONS") return new Response("ok", { headers: { ...corsHeaders() } });
+  let admin: ReturnType<typeof serviceClient>;
+  try {
+    admin = serviceClient();
+  } catch {
+    return fail("Service not configured", 500);
   }
-
-  // Default action: release payout to worker's UPI/bank.
-  const { data: booking } = await admin
-    .from('bookings')
-    .select('*')
-    .eq('id', bookingId)
-    .single();
-  if (!booking) return fail('booking not found', 404);
-
-  // GUARD 1: order must be PAID
-  const { data: order } = await admin
-    .from('orders')
-    .select('status')
-    .eq('booking_id', bookingId)
-    .single();
-  if (!order || order.status !== 'PAID') return fail('order not paid');
-
-  // GUARD 2: client must have confirmed completion
-  if (!booking.client_confirmed) return fail('client has not confirmed');
-
-  // GUARD 3: no double payout (NFR-SEC-10)
-  const { data: existingPayout } = await admin
-    .from('payouts')
-    .select('id')
-    .eq('booking_id', bookingId)
-    .maybeSingle();
-  if (existingPayout) return fail('payout already exists');
-
-  // Compute money SERVER-SIDE (FR-PAY-04).
-  const configRate = await admin
-    .from('platform_config')
-    .select('value')
-    .eq('key', 'commission_rate')
-    .single();
-  const rate = Number(configRate.data?.value ?? booking.commission_rate ?? 0.10);
-  const jobValue = Number(booking.worker_earning ?? 0) > 0
-    ? Number(booking.worker_earning) / (1 - rate)
-    : Number(booking.estimate_min ?? 0); // final amount agreed on completion
-  const commission = Math.round(jobValue * rate * 100) / 100;
-  const earning = Math.round((jobValue - commission) * 100) / 100;
-
-  await admin.from('bookings').update({
-    commission_amount: commission,
-    worker_earning: earning,
-  }).eq('id', bookingId);
-
-  const { data: payInfo } = await admin
-    .from('worker_payment_info')
-    .select('*')
-    .eq('user_id', (
-      await admin.from('workers').select('user_id').eq('id', booking.worker_id).single()
-    ).data!.user_id)
-    .single();
-  if (!payInfo) return fail('worker payment setup missing');
 
   try {
-    const payout = await rzpXPayout({
-      upiId: payInfo.payout_method === 'upi' ? payInfo.upi_id : undefined,
-      accountNumber:
-        payInfo.payout_method === 'bank' ? payInfo.bank_account : undefined,
-      ifsc: payInfo.ifsc ?? undefined,
-      name: payInfo.account_holder ?? 'KaamWala Worker',
-      amountRupees: earning,
-      narration: `KaamWala ${booking.ref}`,
-    });
+    const uid = await callerUid(req);
+    if (!uid) return fail("Unauthorized", 401);
 
-    await admin.from('payouts').insert({
-      booking_id: bookingId,
-      worker_id: booking.worker_id,
-      amount: earning,
-      status: payout.status === 'processed' ? 'SUCCESS' : 'PROCESSING',
-      razorpay_payout_id: payout.id,
-      processed_at: new Date().toISOString(),
-    });
+    const { booking_id: bookingId, action } = await req.json().catch(() => ({}) as Record<string, unknown>);
+    if (action !== "confirm") return fail("Unsupported action");
+    if (!bookingId) return fail("booking_id is required");
 
-    // Notify worker: "₹ sent to your UPI!" (FR-NOTIF-06)
-    await admin.functions.invoke('send-push', {
-      body: { booking_id: bookingId, kind: 'payment_received', amount: earning },
-    });
+    const { data: booking } = await admin
+      .from("bookings")
+      .select(
+        "id, ref, client_id, status, client_confirmed, worker_id, worker_earning",
+      )
+      .eq("id", bookingId)
+      .maybeSingle<BookingRow>();
+    if (!booking) return fail("Booking not found", 404);
+    if (booking.client_id !== uid) return fail("Not your booking", 403);
+    if (booking.status !== "completed") return fail("Worker has not completed this job yet", 409);
 
-    return json({ released: true, payout_id: payout.id, amount: earning });
+    const earning = Number(booking.worker_earning ?? 0);
+    if (!(earning > 0)) return fail("Payout amount not finalized", 409);
+
+    // 2. Client confirmation (service path of bookings_guard allows this)
+    if (!booking.client_confirmed) {
+      const { error } = await admin
+        .from("bookings")
+        .update({ client_confirmed: true })
+        .eq("id", booking.id);
+      if (error) throw new Error("Could not confirm completion");
+    }
+
+    // 3. Idempotent payout row
+    let { data: payout } = await admin
+      .from("payouts")
+      .select("id, status, razorpay_payout_id")
+      .eq("booking_id", booking.id)
+      .maybeSingle<{ id: string; status: string; razorpay_payout_id: string | null }>();
+
+    if (!payout) {
+      const ins = await admin
+        .from("payouts")
+        .insert({
+          booking_id: booking.id,
+          worker_id: booking.worker_id,
+          amount: earning,
+          status: "pending",
+        })
+        .select("id, status, razorpay_payout_id")
+        .single<{ id: string; status: string; razorpay_payout_id: string | null }>();
+      if (ins.error) throw new Error("Could not create payout record");
+      payout = ins.data;
+    }
+    if (!payout) throw new Error("Payout record missing");
+
+    if (["processing", "success"].includes(payout.status)) {
+      return json({ confirmed: true, payout_status: payout.status, payout_id: payout.razorpay_payout_id });
+    }
+
+    // 4. Attempt instant payout when Razorpay X is configured
+    if (!xpConfigured()) {
+      return json({
+        confirmed: true,
+        payout_status: "pending",
+        message: "Payout queued; will be processed by operations.",
+      });
+    }
+
+    const { data: wrow } = await admin
+      .from("workers")
+      .select("user_id")
+      .eq("id", booking.worker_id)
+      .maybeSingle<{ user_id: string }>();
+    if (!wrow) return fail("Worker not found", 404);
+
+    const { data: pinfo } = await admin
+      .from("worker_payment_info")
+      .select("user_id, payout_method, upi_id, rzp_contact_id, rzp_fund_account_id")
+      .eq("user_id", wrow.user_id)
+      .maybeSingle<PaymentInfoRow>();
+    if (!pinfo?.upi_id) {
+      return json({
+        confirmed: true,
+        payout_status: "pending",
+        message: "Worker payment setup pending.",
+      });
+    }
+
+    try {
+      await admin.from("payouts").update({ status: "processing" }).eq("id", payout.id).in("status", ["pending"]);
+
+      // Contact (vendor) — cached for reuse
+      let contactId = pinfo.rzp_contact_id;
+      if (!contactId) {
+        const contact = await rzpRequest<RzpContact>("contacts", {
+          method: "POST",
+          xp: true,
+          body: {
+            name: `worker_${wrow.user_id.slice(0, 8)}`,
+            type: "vendor",
+            reference_id: `kw_${wrow.user_id}`,
+            notes: { kaamwala_uid: wrow.user_id },
+          },
+        });
+        contactId = contact.id;
+      }
+
+      // Fund account (UPI VPA) — cached for reuse
+      let fundAccountId = pinfo.rzp_fund_account_id;
+      if (!fundAccountId) {
+        const fundAccount = await rzpRequest<RzpFundAccount>("fund_accounts", {
+          method: "POST",
+          xp: true,
+          body: {
+            contact_id: contactId,
+            account_type: "vpa",
+            vpa: { address: pinfo.upi_id },
+          },
+        });
+        fundAccountId = fundAccount.id;
+      }
+
+      await admin
+        .from("worker_payment_info")
+        .update({ rzp_contact_id: contactId, rzp_fund_account_id: fundAccountId })
+        .eq("user_id", wrow.user_id);
+
+      const payoutRes = await rzpRequest<RzpPayout>("payouts", {
+        method: "POST",
+        xp: true,
+        body: {
+          fund_account_id: fundAccountId,
+          amount: Math.round(earning * 100),
+          currency: "INR",
+          mode: "UPI",
+          purpose: "payout",
+          queue_if_low_balance: true,
+          reference_id: `kw_payout_${booking.ref}`,
+          narration: `KaamWala ${booking.ref}`,
+        },
+      });
+
+      const succeeded = ["processed", "payout_initiated"].includes(payoutRes.status);
+      await admin
+        .from("payouts")
+        .update({
+          status: succeeded ? "success" : "processing",
+          razorpay_payout_id: payoutRes.id,
+          processed_at: succeeded ? new Date().toISOString() : null,
+        })
+        .eq("id", payout.id)
+        .in("status", ["pending", "processing"]);
+
+      return json({ confirmed: true, payout_status: succeeded ? "success" : "processing" });
+    } catch (e) {
+      const reason = e instanceof Error ? e.message : "Payout failed";
+      await admin
+        .from("payouts")
+        .update({ status: "failed", failure_reason: reason })
+        .eq("id", payout.id)
+        .in("status", ["pending", "processing"]);
+      return json({
+        confirmed: true,
+        payout_status: "failed",
+        message: "Payout failed; operations have been notified via payout record.",
+      });
+    }
   } catch (e) {
-    console.error(e);
-    await admin.from('payouts').insert({
-      booking_id: bookingId,
-      worker_id: booking.worker_id,
-      amount: earning,
-      status: 'FAILED',
-    });
-    return fail('payout failed', 502);
+    return fail(e instanceof Error ? e.message : "Could not release payout", 500);
   }
 });
+
+function corsHeaders(): Record<string, string> {
+  return {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Headers":
+      "authorization, x-client-info, apikey, content-type",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+  };
+}

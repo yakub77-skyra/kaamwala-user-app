@@ -1,56 +1,71 @@
-// Edge Function: approve-worker (A1 / FR-WORKER-02)
-// Admin-only (service role). Approve or reject a worker application.
-// approve: true|false, reason?: string
-import { fail, json, preflight } from '../_shared/utils.ts';
-import { createClient } from 'npm:@supabase/supabase-js@2';
+/**
+ * approve-worker — admin gate for the Aadhar verification queue (5.3).
+ *
+ * body: { worker_id, action: "approve" | "reject", reason?: string }
+ *
+ * Authorization: caller uid must appear in platform_config.admin_user_ids.
+ * Writes run via service role (RLS bypass) and notify the worker in-app +
+ * push (best effort). Rejection requires a reason.
+ */
+import { callerUid, serviceClient } from "./_shared/db.ts";
+import { corsHeaders, fail, json } from "./_shared/http.ts";
+import { sendPushToUser } from "./_shared/push.ts";
 
 Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') return preflight();
-  if (req.method !== 'POST') return fail('method not allowed', 405);
-
-  // This function must be invoked with the SERVICE role key by the admin
-  // (Supabase Studio / admin tooling) - never with anon key.
-  const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-  const authHeader = req.headers.get('Authorization') ?? '';
-  if (!authHeader.includes(serviceKey)) {
-    return fail('admin only', 403);
+  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  let admin: ReturnType<typeof serviceClient>;
+  try {
+    admin = serviceClient();
+  } catch {
+    return fail("Service not configured", 500);
   }
 
-  const { worker_id: workerId, approve, reason } = await req.json().catch(() => ({}) as any);
-  if (!workerId || typeof approve !== 'boolean') {
-    return fail('worker_id and approve required');
+  try {
+    const uid = await callerUid(req);
+    if (!uid) return fail("Unauthorized", 401);
+
+    const { data: cfg } = await admin
+      .from("platform_config")
+      .select("value")
+      .eq("key", "admin_user_ids")
+      .maybeSingle<{ value: string[] }>();
+    const admins = Array.isArray(cfg?.value) ? cfg!.value : [];
+    if (!admins.includes(uid)) return fail("Forbidden", 403);
+
+    const { worker_id: workerId, action, reason } = await req.json().catch(() => ({}) as Record<string, unknown>);
+    if (!workerId || !["approve", "reject"].includes(action as string)) {
+      return fail("worker_id and valid action are required");
+    }
+    if (action === "reject" && !reason) return fail("Rejection reason is required");
+
+    const status = action === "approve" ? "approved" : "rejected";
+    const { data: worker } = await admin
+      .from("workers")
+      .update({
+        approval_status: status,
+        ...(action === "approve" ? { rejection_reason: null } : { rejection_reason: reason }),
+      })
+      .eq("id", workerId)
+      .select("user_id")
+      .maybeSingle<{ user_id: string }>();
+    if (!worker) return fail("Worker not found", 404);
+
+    const title = action === "approve" ? "🎉 Profile approved!" : "❌ Verification failed";
+    const bodyText =
+      action === "approve"
+        ? "You can now receive jobs. Go online from your dashboard."
+        : `Reason: ${reason}. Please re-upload your documents.`;
+
+    await admin.from("notifications").insert({
+      user_id: worker.user_id,
+      type: "system",
+      title,
+      body: bodyText,
+    });
+
+    const delivered = await sendPushToUser(admin, worker.user_id, title, bodyText);
+    return json({ ok: true, status, push_sent: delivered });
+  } catch (e) {
+    return fail(e instanceof Error ? e.message : "Approval failed", 500);
   }
-
-  const admin = createClient(
-    Deno.env.get('SUPABASE_URL')!,
-    serviceKey,
-  );
-
-  const { data: worker, error } = await admin
-    .from('workers')
-    .update({
-      approval_status: approve ? 'approved' : 'rejected',
-      rejection_reason: approve ? null : (reason ?? 'Documents unclear'),
-    })
-    .eq('id', workerId)
-    .select('user_id')
-    .single();
-
-  if (error || !worker) return fail('worker not found', 404);
-
-  // Notify worker (FR-NOTIF-07): "Your profile is approved!"
-  await admin.from('notifications').insert({
-    user_id: worker.user_id,
-    type: 'system',
-    title: approve
-      ? '🎉 Your profile is approved! Start accepting jobs.'
-      : `❌ Profile rejected: ${reason ?? 'Documents unclear'}`,
-    body: approve ? 'Dashboard unlocked' : 'You can re-upload documents',
-  });
-
-  await admin.functions.invoke('send-push', {
-    body: { user_id: worker.user_id, kind: approve ? 'approved' : 'rejected' },
-  });
-
-  return json({ approved: approve });
 });

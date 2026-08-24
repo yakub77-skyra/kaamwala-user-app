@@ -7,10 +7,12 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:pinput/pinput.dart';
 
+import 'package:kaamwala/core/error/failure.dart';
 import 'package:kaamwala/core/theme/app_theme.dart';
+import 'package:kaamwala/features/auth/providers/auth_controller.dart';
+import 'package:kaamwala/features/auth/repositories/auth_repository.dart';
 
 const _resendLimitPerHour = 3;
 const _otpExpirySeconds = 5 * 60;
@@ -25,19 +27,22 @@ class OtpScreen extends ConsumerStatefulWidget {
 
 class _OtpScreenState extends ConsumerState<OtpScreen> {
   final _ctrl = TextEditingController();
+  final _repo = const AuthRepository();
   Timer? _timer;
   int _remaining = _otpExpirySeconds;
-  final int _resendsLeft = _resendLimitPerHour;
+  int _resendsLeft = _resendLimitPerHour;
   bool _busy = false;
+  String? _error;
 
-  String get _phone =>
-      widget.phone ?? '+910000000000';
+  String get _phone => widget.phone ?? '+910000000000';
 
   @override
   void initState() {
     super.initState();
     _startTimer();
-    // TODO(dev): trigger AuthRepository.sendOtp(_phone) once Supabase is configured.
+    // FR-AUTH-01: SMS goes out as soon as the screen opens. In demo mode
+    // (no backend configured) sendOtp is a no-op success.
+    Future<void>.microtask(() => _repo.sendOtp(_phone));
   }
 
   @override
@@ -59,13 +64,49 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
     });
   }
 
-  Future<void> _verify() async {
-    if (_busy || _ctrl.text.length < 6) return;
-    setState(() => _busy = true);
-    await Future<void>.delayed(const Duration(milliseconds: 400));
+  Future<void> _resend() async {
+    if (_busy || _resendsLeft <= 0 || _remaining > _otpExpirySeconds - 30) return;
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    final result = await _repo.sendOtp(_phone);
     if (!mounted) return;
     setState(() => _busy = false);
-    context.go('/role');
+    switch (result) {
+      case Success():
+        setState(() => _resendsLeft--);
+        _startTimer();
+        _showSnack('OTP sent again to $_phone');
+      case Error(:final failure):
+        _showSnack(failure.message);
+    }
+  }
+
+  Future<void> _verify() async {
+    if (_busy || _ctrl.text.length < 6) return;
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    final result = await _repo.verifyOtp(_phone, _ctrl.text.trim());
+    if (!mounted) return;
+    switch (result) {
+      case Success(:final data):
+        // Demo mode (data == null) lands on role selection like before.
+        ref.read(authControllerProvider.notifier).authenticatedAs(data);
+      case Error(:final failure):
+        setState(() => _busy = false);
+        setState(() => _error = failure.message);
+        _ctrl.clear();
+    }
+  }
+
+  void _showSnack(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -80,6 +121,8 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
         border: Border.all(color: const Color(0x291A1A2E)),
       ),
     );
+    final canResend =
+        !_busy && _resendsLeft > 0 && _remaining <= _otpExpirySeconds - 30;
     return Scaffold(
       appBar: AppBar(title: const Text('Enter OTP')),
       body: SafeArea(
@@ -107,15 +150,35 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
                 onCompleted: (_) => _verify(),
               ),
             ),
+            if (_error != null) ...[
+              const SizedBox(height: KwSpacing.md),
+              Text(
+                '❌ $_error',
+                style: Theme.of(context)
+                    .textTheme
+                    .bodySmall
+                    ?.copyWith(color: KwColors.red),
+              ),
+            ],
             const SizedBox(height: KwSpacing.lg),
-            Text(
-              _remaining > 0
-                  ? 'Resend in ${(_remaining ~/ 60).toString().padLeft(2, '0')}:${(_remaining % 60).toString().padLeft(2, '0')}   ($_resendsLeft tries)'
-                  : 'You can resend now ($_resendsLeft tries left)',
-              style: Theme.of(context)
-                  .textTheme
-                  .labelMedium
-                  ?.copyWith(color: KwColors.muted),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    _remaining > 0
+                        ? 'Resend in ${(_remaining ~/ 60).toString().padLeft(2, '0')}:${(_remaining % 60).toString().padLeft(2, '0')}   ($_resendsLeft tries)'
+                        : 'You can resend now ($_resendsLeft tries left)',
+                    style: Theme.of(context)
+                        .textTheme
+                        .labelMedium
+                        ?.copyWith(color: KwColors.muted),
+                  ),
+                ),
+                TextButton(
+                  onPressed: canResend ? _resend : null,
+                  child: const Text('Resend OTP'),
+                ),
+              ],
             ),
             const SizedBox(height: KwSpacing.md),
             ElevatedButton.icon(

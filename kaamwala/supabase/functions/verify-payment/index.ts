@@ -1,64 +1,191 @@
-// Edge Function: verify-payment (Razorpay webhook, FR-PAY-02)
-// HMAC-SHA256 verified (NFR-SEC-03). Marks order PAID and notifies worker.
-import { fail, json, preflight, verifyWebhookSignature } from '../_shared/utils.ts';
+/**
+ * verify-payment — dual mode endpoint (Phase 3 section 9):
+ *
+ * 1) Razorpay webhook  (no user JWT; authenticated by HMAC signature):
+ *    - payment.captured -> orders PAID + notify worker "new job"
+ *    - payment.failed   -> orders FAILED
+ *    - refund.processed -> orders REFUNDED
+ * 2) Authenticated refund request from the app:
+ *    body: { type: "refund", booking_id }
+ *    Caller must be the booking's client; booking must be cancelled
+ *    and the order paid. Triggers a full refund of the Rs.20 fee.
+ *
+ * Deployed with verify_jwt = false (webhooks cannot carry our JWT);
+ * the two modes are separated by the x-razorpay-signature header.
+ */
+import { createClient } from "jsr:@supabase/supabase-js@2";
+import { callerUid, serviceClient } from "./_shared/db.ts";
+import { corsHeaders, fail, json } from "./_shared/http.ts";
+import { rzpRequest, verifyWebhookSignature, type RzpRefund } from "./_shared/razorpay.ts";
+import { sendPushToUser } from "./_shared/push.ts";
+
+interface OrderRow {
+  id: string;
+  booking_id: string;
+  razorpay_order_id: string;
+  razorpay_payment_id: string | null;
+  status: string;
+}
+
+interface WebhookPayment {
+  id?: string;
+  order_id?: string;
+}
 
 Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') return preflight();
+  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
-  const raw = await req.text();
-  const signature = req.headers.get('x-razorpay-signature') ?? '';
+  const rawBody = await req.text();
+  let admin: ReturnType<typeof serviceClient>;
+  try {
+    admin = serviceClient();
+  } catch {
+    return fail("Service not configured", 500);
+  }
 
-  const ok = await verifyWebhookSignature(raw, signature);
-  if (!ok) return fail('invalid signature', 401); // reject unsigned/modified
+  try {
+    // ---------- Mode 1: Razorpay webhook ----------
+    const signature = req.headers.get("x-razorpay-signature");
+    if (signature) {
+      const valid = await verifyWebhookSignature(rawBody, signature);
+      if (!valid) return fail("Invalid signature", 401);
 
-  const event = JSON.parse(raw);
+      const event = JSON.parse(rawBody) as {
+        type?: string;
+        payload?: { payment?: { entity?: WebhookPayment }; refund?: { entity?: { id?: string; payment_id?: string } } };
+      };
+      const payment = event.payload?.payment?.entity;
+      const refund = event.payload?.refund?.entity;
 
-  if (event.event === 'payment.captured' || event.event === 'order.paid') {
-    const rzpOrderId =
-      event.payload?.payment?.entity?.order_id ??
-      event.payload?.order?.entity?.id;
-    if (!rzpOrderId) return fail('no order id in payload');
+      switch (event.type) {
+        case "payment.captured":
+        case "payment.authorized": {
+          await markOrderPaid(admin, payment?.order_id, payment?.id ?? null);
+          break;
+        }
+        case "payment.failed": {
+          if (payment?.order_id) {
+            await admin
+              .from("orders")
+              .update({ status: "failed" })
+              .eq("razorpay_order_id", payment.order_id)
+              .eq("status", "created");
+          }
+          break;
+        }
+        case "refund.processed": {
+          if (payment?.order_id) {
+            await admin
+              .from("orders")
+              .update({ status: "refunded" })
+              .eq("razorpay_order_id", payment.order_id)
+              .in("status", ["paid", "failed"]);
+          }
+          break;
+        }
+        default:
+          break;
+      }
+      return json({ received: true });
+    }
 
-    const supabase = (await import('npm:@supabase/supabase-js@2')).createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-    );
+    // ---------- Mode 2: authenticated refund ----------
+    if (event2IsRefund(JSON.parse(rawBody || "{}"))) {
+      return await handleRefundRequest(req, admin);
+    }
+    return fail("Unsupported request");
+  } catch (e) {
+    return fail(e instanceof Error ? e.message : "Verification failed", 500);
+  }
 
-    const { data: order } = await supabase
-      .from('orders')
+  function event2IsRefund(body: Record<string, unknown>): boolean {
+    return body.type === "refund" && typeof body.booking_id === "string";
+  }
+
+  async function markOrderPaid(
+    admn: ReturnType<typeof serviceClient>,
+    rzpOrderId?: string,
+    rzpPaymentId?: string | null,
+  ): Promise<void> {
+    if (!rzpOrderId) return;
+    const { data: order } = await admn
+      .from("orders")
+      .select("id, booking_id, razorpay_payment_id, status")
+      .eq("razorpay_order_id", rzpOrderId)
+      .maybeSingle<OrderRow>();
+    if (!order || order.status !== "created") return;
+
+    const { error } = await admn
+      .from("orders")
       .update({
-        status: 'PAID',
-        razorpay_payment_id: event.payload?.payment?.entity?.id ?? null,
+        status: "paid",
+        razorpay_payment_id: rzpPaymentId ?? order.razorpay_payment_id,
         paid_at: new Date().toISOString(),
       })
-      .eq('razorpay_order_id', rzpOrderId)
-      .select('booking_id')
-      .single();
+      .eq("id", order.id)
+      .eq("status", "created");
+    if (error) throw new Error("Could not update order");
 
-    if (order) {
-      // Push notification to the worker: "New Job!" (FR-NOTIF-02)
-      await supabase.functions.invoke('send-push', {
-        body: {
-          booking_id: order.booking_id,
-          kind: 'new_job',
-        },
-      });
+    // DB trigger inserts the worker's in-app notification on this transition.
+    const { data: booking } = await admn
+      .from("bookings")
+      .select("worker_id")
+      .eq("id", order.booking_id)
+      .maybeSingle<{ worker_id: string }>();
+    if (booking) {
+      const { data: wrow } = await admn
+        .from("workers")
+        .select("user_id")
+        .eq("id", booking.worker_id)
+        .maybeSingle<{ user_id: string }>();
+      if (wrow) {
+        await sendPushToUser(admn, wrow.user_id, "🔔 New job request!", "You have a new paid booking. Open the app to accept.");
+      }
     }
   }
 
-  // Refund path (FR-PAY-06): cancellation while pending auto-refunds via
-  // Razorpay dashboard/API; webhook marks REFUNDED.
-  if (event.event === 'refund.processed') {
-    const paymentId = event.payload?.refund?.entity?.payment_id;
-    const supabase = (await import('npm:@supabase/supabase-js@2')).createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-    );
-    await supabase
-      .from('orders')
-      .update({ status: 'REFUNDED' })
-      .eq('razorpay_payment_id', paymentId);
-  }
+  async function handleRefundRequest(
+    req2: Request,
+    admn: ReturnType<typeof serviceClient>,
+  ): Promise<Response> {
+    const uid = await callerUid(req2);
+    if (!uid) return fail("Unauthorized", 401);
 
-  return json({ received: true });
+    const body = JSON.parse(await req2.text()) as { booking_id: string };
+
+    const { data: booking } = await admn
+      .from("bookings")
+      .select("id, client_id, status, ref")
+      .eq("id", body.booking_id)
+      .maybeSingle<{ id: string; client_id: string; status: string; ref: string }>();
+    if (!booking) return fail("Booking not found", 404);
+    if (booking.client_id !== uid) return fail("Not your booking", 403);
+
+    const { data: order } = await admn
+      .from("orders")
+      .select("id, razorpay_payment_id, status")
+      .eq("booking_id", booking.id)
+      .maybeSingle<OrderRow>();
+    if (!order || order.status !== "paid") return fail("Nothing to refund", 409);
+
+    const refund = await rzpRequest<RzpRefund>(
+      `payments/${order.razorpay_payment_id}/refund`,
+      { method: "POST", body: {} },
+    );
+
+    await admn
+      .from("orders")
+      .update({ status: "refunded" })
+      .eq("id", order.id)
+      .in("status", ["paid"]);
+
+    await admn.from("notifications").insert({
+      user_id: uid,
+      type: "payment",
+      title: "↩️ Refund initiated",
+      body: `Rs. 20 refund for ${booking.ref} is on its way to your account.`,
+    });
+
+    return json({ refunded: true, refund_id: refund.id });
+  }
 });

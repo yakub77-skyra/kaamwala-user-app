@@ -1,85 +1,122 @@
-// Edge Function: create-order (FR-PAY-01)
-// Validates booking, computes amount SERVER-SIDE, creates Razorpay order.
-// Client receives ONLY {order_id, amount, key_id} (Phase 4 section 5.1).
-// Idempotent (NFR-REL-02): re-calling for the same booking returns the
-// existing order instead of creating a duplicate.
-import {
-  corsHeaders,
-  fail,
-  json,
-  preflight,
-  rzpCreateOrder,
-} from '../_shared/utils.ts';
-import { createClient } from 'npm:@supabase/supabase-js@2';
+/**
+ * create-order — server-side Razorpay order creation (FR-PAY-01..04).
+ *
+ * Contract with the Flutter app (BookingsRepository.createOrder):
+ *   body:  { booking_id }
+ *   200 :  { order_id, amount(paise), currency, key_id, booking_ref }
+ *   4xx :  { error }
+ *
+ * All money math happens here; the client never sends amounts.
+ */
+import { callerUid, serviceClient } from "./_shared/db.ts";
+import { fail, json } from "./_shared/http.ts";
+import { rzpRequest, type RzpOrder } from "./_shared/razorpay.ts";
+
+interface BookingRow {
+  id: string;
+  ref: string;
+  client_id: string;
+  status: string;
+  booking_fee: number | string;
+  estimate_min: number | string;
+  estimate_max: number | string;
+  commission_rate: number | string;
+}
 
 Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') return preflight();
-  if (req.method !== 'POST') return fail('method not allowed', 405);
-
-  // Must be called by an authenticated client (RLS context).
-  const authHeader = req.headers.get('Authorization') ?? '';
-  if (!authHeader) return fail('unauthorized', 401);
-
-  const supabase = createClient(
-    Deno.env.get('SUPABASE_URL')!,
-    Deno.env.get('SUPABASE_ANON_KEY')!,
-    { global: { headers: { Authorization: authHeader } } },
-  );
-
-  const { data: authUser } = await supabase.auth.getUser();
-  if (!authUser?.user) return fail('unauthorized', 401);
-
-  const { booking_id: bookingId } = await req.json().catch(() => ({}) as any);
-  if (!bookingId) return fail('booking_id required');
-
-  const { data: booking, error: bErr } = await supabase
-    .from('bookings')
-    .select('id, ref, client_id, status, booking_fee')
-    .eq('id', bookingId)
-    .single();
-
-  if (bErr || !booking) return fail('booking not found', 404);
-  if (booking.client_id !== authUser.user.id) return fail('forbidden', 403);
-  if (booking.status !== 'pending') return fail('booking not payable');
-
-  const configFee = await supabase
-    .from('platform_config')
-    .select('value')
-    .eq('key', 'booking_fee')
-    .single();
-  const feeRupees = Number(configFee.data?.value ?? booking.booking_fee ?? 20);
-
-  // Idempotency: existing order wins (NFR-REL-02).
-  const { data: existing } = await supabase
-    .from('orders')
-    .select('razorpay_order_id, amount')
-    .eq('booking_id', bookingId)
-    .maybeSingle();
-
-  let orderId = existing?.razorpay_order_id as string | null;
-  if (!orderId) {
-    try {
-      const order = await rzpCreateOrder(
-        Math.round(feeRupees * 100),
-        `kw_${booking.ref}`,
-      );
-      orderId = order.id;
-      await supabase.from('orders').upsert({
-        booking_id: bookingId,
-        razorpay_order_id: order.id,
-        amount: feeRupees,
-        status: 'CREATED',
-      });
-    } catch (e) {
-      console.error(e);
-      return fail('could not create payment order', 502);
-    }
+  if (req.method === "OPTIONS") return new Response("ok", { headers: { ...corsHeaders() } });
+  let admin: ReturnType<typeof serviceClient>;
+  try {
+    admin = serviceClient();
+  } catch {
+    return fail("Service not configured", 500);
   }
 
-  return json({
-    order_id: orderId,
-    amount: Math.round(feeRupees * 100),
-    key_id: Deno.env.get('RAZORPAY_KEY_ID'), // PUBLIC key id - safe for client
-    currency: 'INR',
-  });
+  try {
+    const uid = await callerUid(req);
+    if (!uid) return fail("Unauthorized", 401);
+
+    const { booking_id: bookingId } = await req.json().catch(() => ({}) as Record<string, unknown>);
+    if (!bookingId) return fail("booking_id is required");
+
+    // Caller must own this booking (checked against service read, RLS bypassed)
+    const { data: booking, error: bErr } = await admin
+      .from("bookings")
+      .select(
+        "id, ref, client_id, status, booking_fee, estimate_min, estimate_max, commission_rate",
+      )
+      .eq("id", bookingId)
+      .maybeSingle<BookingRow>();
+    if (bErr || !booking) return fail("Booking not found", 404);
+    if (booking.client_id !== uid) return fail("Not your booking", 403);
+    if (!["pending", "accepted"].includes(booking.status)) {
+      return fail(`Booking is ${booking.status}; payment not allowed`, 409);
+    }
+
+    // Idempotent: reuse an existing unpaid order instead of double-charging
+    const { data: existing } = await admin
+      .from("orders")
+      .select("razorpay_order_id, status")
+      .eq("booking_id", booking.id)
+      .maybeSingle<{ razorpay_order_id: string; status: string }>();
+    if (existing?.status === "paid") return fail("Booking already paid", 409);
+
+    const feeRupees = Number(booking.booking_fee ?? 20);
+    const amountPaise = Math.round(feeRupees * 100);
+
+    // Server-side money math (NFR-SEC-02): commission on estimate midpoint
+    const mid = (Number(booking.estimate_min) + Number(booking.estimate_max)) / 2;
+    const rate = Number(booking.commission_rate ?? 0.10);
+    const commissionAmount = Math.round(mid * rate * 100) / 100;
+    const workerEarning = Math.max(0, Math.round((mid - commissionAmount) * 100) / 100);
+
+    let razorpayOrderId: string;
+    if (existing && existing.status === "created") {
+      razorpayOrderId = existing.razorpay_order_id;
+    } else {
+      const order = await rzpRequest<RzpOrder>("orders", {
+        method: "POST",
+        body: {
+          amount: amountPaise,
+          currency: "INR",
+          receipt: booking.ref,
+          notes: { booking_id: booking.id },
+        },
+      });
+      razorpayOrderId = order.id;
+
+      const { error: oErr } = await admin.from("orders").upsert({
+        booking_id: booking.id,
+        razorpay_order_id: order.id,
+        amount: feeRupees,
+        status: "created",
+      });
+      if (oErr) throw new Error("Could not record order");
+    }
+
+    const { error: uErr } = await admin
+      .from("bookings")
+      .update({ commission_amount: commissionAmount, worker_earning: workerEarning })
+      .eq("id", booking.id);
+    if (uErr) throw new Error("Could not finalize booking amounts");
+
+    return json({
+      order_id: razorpayOrderId,
+      amount: amountPaise,
+      currency: "INR",
+      key_id: Deno.env.get("RZP_KEY_ID") ?? "",
+      booking_ref: booking.ref,
+    });
+  } catch (e) {
+    return fail(e instanceof Error ? e.message : "Payment failed. Try again.", 500);
+  }
 });
+
+function corsHeaders(): Record<string, string> {
+  return {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Headers":
+      "authorization, x-client-info, apikey, content-type",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+  };
+}

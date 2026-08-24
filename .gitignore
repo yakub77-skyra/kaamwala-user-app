@@ -1,0 +1,10 @@
+# secrets
+.env
+*.local
+
+# opencode local config (contains tokens)
+opencode.json
+
+# misc
+Thumbs.db
+.DS_Store

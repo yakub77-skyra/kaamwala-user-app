@@ -69,27 +69,79 @@ class WorkerRepository {
   }
 
   /// Pending bookings assigned to me (FR-WORKER-04).
-  Future<Result<List<Booking>>> pendingJobs() async {
+  /// RLS scopes rows to the signed-in worker (0002 bookings_select_participants);
+  /// client name is embedded via FK so Booking.fromMap picks it up.
+  Future<Result<List<Booking>>> pendingJobs() =>
+      myBookings(statuses: [BookingStatus.pending]);
+
+  /// Bookings for this worker filtered by status - dashboard, active jobs,
+  /// earnings all read from here. Money fields are server-computed values
+  /// that we only display (NFR-SEC-02).
+  Future<Result<List<Booking>>> myBookings(
+      {List<BookingStatus>? statuses}) async {
     if (!SupabaseService.isReady) return const Success([]);
     try {
-      final rows = await SupabaseService.client
+      var query = SupabaseService.client
           .from('bookings')
-          .select()
-          .eq('status', BookingStatus.pending.dbValue)
-          .order('created_at', ascending: false)
-          .limit(50);
+          .select('*, users(name)');
+      if (statuses != null && statuses.isNotEmpty) {
+        query = query.inFilter(
+            'status', [for (final s in statuses) s.dbValue]);
+      }
+      final rows = await query.order('created_at', ascending: false).limit(100);
       return Success([for (final r in rows) Booking.fromMap(r)]);
     } catch (e) {
       return Error(mapException(e));
     }
   }
 
-  Future<Result<void>> updateStatus(String bookingId, BookingStatus s) async {
+  /// Single booking by id - job detail screen (W5).
+  Future<Result<Booking?>> bookingById(String id) async {
     if (!SupabaseService.isReady) return const Success(null);
     try {
-      await SupabaseService.client
+      final row = await SupabaseService.client
+          .from('bookings')
+          .select('*, users(name)')
+          .eq('id', id)
+          .maybeSingle();
+      if (row == null) return const Success(null);
+      return Success(Booking.fromMap(row));
+    } catch (e) {
+      return Error(mapException(e));
+    }
+  }
+
+  /// My workers row - dashboard reads availability + review status from it.
+  Future<Result<Map<String, dynamic>?>> myWorker() async {
+    if (!SupabaseService.isReady) return const Success(null);
+    final uid = SupabaseService.currentUserId;
+    if (uid == null) return const Error(AuthFailure());
+    try {
+      final row = await SupabaseService.client
+          .from('workers')
+          .select()
+          .eq('user_id', uid)
+          .maybeSingle();
+      return Success(row == null ? null : Map<String, dynamic>.from(row));
+    } catch (e) {
+      return Error(mapException(e));
+    }
+  }
+
+  /// Moves a booking forward. [expectedFrom] guards against out-of-order
+  /// taps (e.g. completing before arriving) - the update simply no-ops
+  /// when the row is no longer in the expected state.
+  Future<Result<void>> updateStatus(String bookingId, BookingStatus s,
+      {BookingStatus? expectedFrom}) async {
+    if (!SupabaseService.isReady) return const Success(null);
+    try {
+      var query = SupabaseService.client
           .from('bookings')
           .update({'status': s.dbValue}).eq('id', bookingId);
+      if (expectedFrom != null) {
+        query = query.eq('status', expectedFrom.dbValue);
+      }
+      await query;
       return const Success(null);
     } catch (e) {
       return Error(mapException(e));

@@ -1,92 +1,73 @@
-// Edge Function: send-push (Phase 4 section 6.2)
-// Reads FCM token from push_tokens and delivers via FCM HTTP v1.
-// Kinds: new_job | accepted | declined | payment_received | approved | rejected
-import { fail, json, preflight } from '../_shared/utils.ts';
-import { createClient } from 'npm:@supabase/supabase-js@2';
+// Edge Function: send-push — FCM HTTP v1 (Phase 4 section 6.2).
+//
+// body: { user_id, title, body }  OR  { kind, booking_id, amount? }
+// kinds: new_job | accepted | declined | payment_received | approved | rejected
+//
+// Uses the service account (FCM_SERVICE_ACCOUNT_JSON) for OAuth; DB
+// notifications remain the source of truth — push is best-effort.
+import { createClient } from "jsr:@supabase/supabase-js@2";
+import { fail, json, corsHeaders } from "./_shared/http.ts";
+import { sendPushToUser, pushConfigured } from "./_shared/push.ts";
 
 Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') return preflight();
-  if (req.method !== 'POST') return fail('method not allowed', 405);
+  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  if (req.method !== "POST") return fail("method not allowed", 405);
 
   const admin = createClient(
-    Deno.env.get('SUPABASE_URL')!,
-    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+    { auth: { persistSession: false, autoRefreshToken: false } },
   );
 
-  const body = await req.json().catch(() => ({}) as any);
-
+  const body = await req.json().catch(() => ({}) as Record<string, unknown>);
   let userId = body.user_id as string | undefined;
-  let title = '';
-  let bodyText = '';
+  let title = (body.title as string) ?? "";
+  let bodyText = (body.body as string) ?? "";
 
   if (!userId && body.booking_id) {
     const { data: booking } = await admin
-      .from('bookings')
-      .select('client_id, worker_id, ref')
-      .eq('id', body.booking_id)
+      .from("bookings")
+      .select("client_id, worker_id, ref")
+      .eq("id", body.booking_id)
       .single();
-    if (!booking) return fail('booking not found', 404);
+    if (!booking) return fail("booking not found", 404);
+
+    const workerUser = async () => {
+      const { data: w } = await admin
+        .from("workers")
+        .select("user_id")
+        .eq("id", booking.worker_id)
+        .maybeSingle();
+      return w?.user_id as string | undefined;
+    };
 
     switch (body.kind) {
-      case 'new_job': {
-        const { data: wu } = await admin
-          .from('workers').select('user_id, category, city').eq('id', booking.worker_id).single();
-        userId = wu?.user_id;
-        title = `🔔 New Job! ${wu?.category ?? ''} needed in ${wu?.city ?? ''}`;
-        bodyText = `Booking ${booking.ref}`;
+      case "new_job":
+        userId = await workerUser();
+        title = "🔔 New job request!";
+        bodyText = `Booking ${booking.ref}. Open the app to accept.`;
         break;
-      }
-      case 'accepted':
+      case "accepted":
         userId = booking.client_id;
-        title = '✅ Your booking was accepted!';
+        title = "✅ Your booking was accepted!";
         break;
-      case 'declined':
+      case "declined":
         userId = booking.client_id;
-        title = '❌ Worker declined. Try another worker.';
+        title = "❌ Worker declined. Try another worker.";
         break;
-      case 'payment_received':
-        userId = booking.client_id;
-        title = `💰 ₹${body.amount ?? ''} sent to worker UPI!`;
+      case "payment_received":
+        userId = await workerUser();
+        title = `💰 Rs.${body.amount ?? ""} received`;
+        bodyText = `Payout for ${booking.ref} completed.`;
         break;
       default:
-        return fail('unknown kind');
+        return fail("unknown kind");
     }
   }
 
-  if (body.kind === 'approved') title = '🎉 Your profile is approved!';
-  if (body.kind === 'rejected') title = '❌ Profile needs re-upload';
+  if (!userId) return fail("no target user");
+  if (!pushConfigured()) return json({ sent: false, note: "FCM not configured" });
 
-  if (!userId) return fail('no target user');
-
-  const { data: tokens } = await admin
-    .from('push_tokens')
-    .select('token, platform')
-    .eq('user_id', userId);
-  if (!tokens || tokens.length === 0) return json({ sent: 0 });
-
-  // In production use FCM HTTP v1 with a service-account JWT.
-  // Legacy server key kept for MVP simplicity.
-  const serverKey = Deno.env.get('FCM_SERVER_KEY');
-  if (!serverKey) return json({ sent: 0, note: 'FCM key not configured' });
-
-  const results = await Promise.allSettled(
-    tokens.map((t) =>
-      fetch('https://fcm.googleapis.com/fcm/send', {
-        method: 'POST',
-        headers: {
-          Authorization: `key=${serverKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          to: t.token,
-          notification: { title, body: bodyText },
-          data: { kind: body.kind ?? '', booking_id: String(body.booking_id ?? '') },
-          android: { priority: 'high' },
-        }),
-      }),
-    ),
-  );
-
-  const sent = results.filter((r) => r.status === 'fulfilled').length;
+  const sent = await sendPushToUser(admin, userId, title, bodyText);
   return json({ sent });
 });

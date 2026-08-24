@@ -49,6 +49,22 @@ class AuthController extends Notifier<AuthState> {
     }
   }
 
+  /// After OTP verification - routes by profile completeness (FR-AUTH-05):
+  /// no profile / unnamed -> role selection, else straight into the app shell
+  /// (router redirect picks up the stage change).
+  void authenticatedAs(UserProfile? profile) {
+    if (profile == null || profile.name.isEmpty) {
+      state = AuthState(stage: AppStage.roleSelection, profile: profile);
+    } else {
+      state = AuthState(
+        stage: profile.role == UserRole.worker
+            ? AppStage.workerApp
+            : AppStage.clientApp,
+        profile: profile,
+      );
+    }
+  }
+
   Future<void> finishRoleSelection({
     required String name,
     required bool asWorker,
