@@ -5,11 +5,6 @@ plugins {
     id("com.android.application")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
-    // Firebase is OPTIONAL until google-services.json exists (Phase 4 6.2).
-    // The build stays green without it; FCM features degrade gracefully.
-    if (file("google-services.json").exists()) {
-        id("com.google.gms.google-services")
-    }
 }
 
 // Release keystore from android/key.properties (NEVER committed).
@@ -74,4 +69,10 @@ kotlin {
 
 flutter {
     source = "../.."
+}
+
+// Firebase is OPTIONAL until google-services.json exists (Phase 4 6.2).
+// Applied post-plugins because the plugins {} block cannot call file().
+if (file("google-services.json").exists()) {
+    apply(plugin = "com.google.gms.google-services")
 }
