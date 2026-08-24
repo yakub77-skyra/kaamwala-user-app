@@ -15,7 +15,8 @@ enum ServiceCategory {
   final String labelHi;
   final IconData icon;
 
-  static ServiceCategory fromDb(String value) => ServiceCategory.values.firstWhere(
+  static ServiceCategory fromDb(String value) =>
+      ServiceCategory.values.firstWhere(
         (c) => c.name == value,
         orElse: () => ServiceCategory.plumber,
       );
@@ -38,9 +39,10 @@ enum BookingStatus {
   final String label;
   final String emoji;
 
-  static BookingStatus fromDb(String value) =>
-      BookingStatus.values.firstWhere((s) => s.name == value,
-          orElse: () => BookingStatus.pending);
+  static BookingStatus fromDb(String value) => BookingStatus.values.firstWhere(
+    (s) => s.name == value,
+    orElse: () => BookingStatus.pending,
+  );
 
   String get dbValue => name;
 
@@ -63,6 +65,7 @@ abstract final class AppConstants {
   /// Worker commission - worker keeps 90% (Phase 1 pillar: Fair Pay).
   static const double commissionRate = 0.10;
 
-  static const String appTagline = 'Find a verified worker in 30 seconds. Pay by UPI. Done.';
+  static const String appTagline =
+      'Find a verified worker in 30 seconds. Pay by UPI. Done.';
   static const String appName = 'KaamWala';
 }

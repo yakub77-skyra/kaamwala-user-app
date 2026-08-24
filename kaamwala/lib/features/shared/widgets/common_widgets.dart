@@ -10,7 +10,12 @@ import 'package:kaamwala/models/worker.dart';
 
 /// NFR-USE-07: every list has a friendly empty state, never blank white.
 class EmptyState extends StatelessWidget {
-  const EmptyState({super.key, required this.emoji, required this.title, this.subtitle});
+  const EmptyState({
+    super.key,
+    required this.emoji,
+    required this.title,
+    this.subtitle,
+  });
   final String emoji;
   final String title;
   final String? subtitle;
@@ -25,20 +30,20 @@ class EmptyState extends StatelessWidget {
           children: [
             Text(emoji, style: const TextStyle(fontSize: 56)),
             const SizedBox(height: KwSpacing.md),
-            Text(title,
-                textAlign: TextAlign.center,
-                style: Theme.of(context)
-                    .textTheme
-                    .titleMedium
-                    ?.copyWith(fontWeight: FontWeight.w700)),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.titleMedium
+                  ?.copyWith(fontWeight: FontWeight.w700),
+            ),
             if (subtitle != null) ...[
               const SizedBox(height: KwSpacing.sm),
-              Text(subtitle!,
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context)
-                      .textTheme
-                      .bodySmall
-                      ?.copyWith(color: KwColors.muted)),
+              Text(
+                subtitle!,
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodySmall
+                    ?.copyWith(color: KwColors.muted),
+              ),
             ],
           ],
         ),
@@ -93,23 +98,21 @@ class WorkerCard extends StatelessWidget {
                         Expanded(
                           child: Text(
                             worker.name.isEmpty ? 'Worker' : worker.name,
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleMedium
+                            style: Theme.of(context).textTheme.titleMedium
                                 ?.copyWith(fontWeight: FontWeight.w700),
                           ),
                         ),
                         Icon(Icons.star, size: 16, color: KwColors.gold),
-                        Text(' ${worker.ratingAvg.toStringAsFixed(1)}',
-                            style: Theme.of(context).textTheme.labelLarge),
+                        Text(
+                          ' ${worker.ratingAvg.toStringAsFixed(1)}',
+                          style: Theme.of(context).textTheme.labelLarge,
+                        ),
                       ],
                     ),
                     const SizedBox(height: 2),
                     Text(
                       '${worker.category.labelEn} • ${worker.area.isEmpty ? worker.city : worker.area}',
-                      style: Theme.of(context)
-                          .textTheme
-                          .bodySmall
+                      style: Theme.of(context).textTheme.bodySmall
                           ?.copyWith(color: KwColors.muted),
                     ),
                     const SizedBox(height: KwSpacing.sm),
@@ -118,34 +121,36 @@ class WorkerCard extends StatelessWidget {
                         if (worker.isVerified)
                           Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: KwSpacing.sm, vertical: 2),
+                              horizontal: KwSpacing.sm,
+                              vertical: 2,
+                            ),
                             decoration: BoxDecoration(
                               color: KwColors.green.withValues(alpha: .12),
-                              borderRadius:
-                                  BorderRadius.circular(KwRadius.chip),
+                              borderRadius: BorderRadius.circular(
+                                KwRadius.chip,
+                              ),
                             ),
                             child: Text(
                               '✅ Verified',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .labelSmall
+                              style: Theme.of(context).textTheme.labelSmall
                                   ?.copyWith(
-                                      color: KwColors.green,
-                                      fontWeight: FontWeight.w700),
+                                    color: KwColors.green,
+                                    fontWeight: FontWeight.w700,
+                                  ),
                             ),
                           )
                         else
-                          Text('⚠️ Unverified',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .labelSmall
-                                  ?.copyWith(color: KwColors.gold)),
+                          Text(
+                            '⚠️ Unverified',
+                            style: Theme.of(context).textTheme.labelSmall
+                                ?.copyWith(color: KwColors.gold),
+                          ),
                         const Spacer(),
-                        Text(worker.priceMin > 0 ? '₹${worker.priceMin}+' : '',
-                            style: Theme.of(context)
-                                .textTheme
-                                .labelLarge
-                                ?.copyWith(fontWeight: FontWeight.w700)),
+                        Text(
+                          worker.priceMin > 0 ? '₹${worker.priceMin}+' : '',
+                          style: Theme.of(context).textTheme.labelLarge
+                              ?.copyWith(fontWeight: FontWeight.w700),
+                        ),
                       ],
                     ),
                   ],
@@ -175,15 +180,15 @@ class StatusTimeline extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (status == BookingStatus.cancelled ||
-        status == BookingStatus.declined) {
+    if (status == BookingStatus.cancelled || status == BookingStatus.declined) {
       return ListTile(
         leading: Text(status.emoji, style: const TextStyle(fontSize: 22)),
         title: Text(status.label),
       );
     }
-    final currentIdx =
-        _flow.indexOf(status == BookingStatus.pending ? BookingStatus.pending : status);
+    final currentIdx = _flow.indexOf(
+      status == BookingStatus.pending ? BookingStatus.pending : status,
+    );
     return Column(
       children: [
         for (var i = 0; i < _flow.length; i++)

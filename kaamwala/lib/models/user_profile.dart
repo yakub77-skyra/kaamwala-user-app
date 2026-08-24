@@ -21,20 +21,20 @@ class UserProfile {
   final String? photoUrl;
 
   factory UserProfile.fromMap(Map<String, dynamic> map) => UserProfile(
-        id: map['id'] as String,
-        phone: (map['phone'] ?? '') as String,
-        name: (map['name'] ?? '') as String,
-        role: map['role'] == 'worker' ? UserRole.worker : UserRole.client,
-        city: (map['city'] ?? '') as String,
-        photoUrl: map['photo_url'] as String?,
-      );
+    id: map['id'] as String,
+    phone: (map['phone'] ?? '') as String,
+    name: (map['name'] ?? '') as String,
+    role: map['role'] == 'worker' ? UserRole.worker : UserRole.client,
+    city: (map['city'] ?? '') as String,
+    photoUrl: map['photo_url'] as String?,
+  );
 
   Map<String, dynamic> toMap() => {
-        'id': id,
-        'phone': phone,
-        'name': name,
-        'role': role == UserRole.worker ? 'worker' : 'client',
-        'city': city,
-        'photo_url': photoUrl,
-      };
+    'id': id,
+    'phone': phone,
+    'name': name,
+    'role': role == UserRole.worker ? 'worker' : 'client',
+    'city': city,
+    'photo_url': photoUrl,
+  };
 }

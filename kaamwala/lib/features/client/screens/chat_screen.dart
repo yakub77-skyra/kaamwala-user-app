@@ -29,14 +29,25 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   RealtimeChannel? _channel;
   bool _sending = false;
   String? _myId;
+  String _title = 'Chat';
 
   @override
   void initState() {
     super.initState();
     _myId = SupabaseService.currentUserId ?? 'demo-client';
     _load();
-    _channel =
-        ref.read(chatRepoProvider).subscribe(widget.bookingId, _load);
+    _loadTitle();
+    _channel = ref.read(chatRepoProvider).subscribe(widget.bookingId, _load);
+  }
+
+  Future<void> _loadTitle() async {
+    final res = await ref
+        .read(bookingsRepoProvider)
+        .counterpartName(widget.bookingId);
+    if (!mounted) return;
+    if (res case Success(:final data) when data.isNotEmpty) {
+      setState(() => _title = data);
+    }
   }
 
   Future<void> _load() async {
@@ -47,6 +58,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         _messages = data;
       }
     });
+    // Read receipts: everything from the counterpart is now seen (FR-CHAT-03).
+    unawaited(
+      ref
+          .read(chatRepoProvider)
+          .markRead(bookingId: widget.bookingId, readerId: _myId!),
+    );
     if (_scroll.hasClients) {
       await Future<void>.delayed(const Duration(milliseconds: 50));
       if (_scroll.hasClients) {
@@ -60,11 +77,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     if (text.isEmpty || _sending) return;
     _sending = true;
     _ctrl.clear();
-    await ref.read(chatRepoProvider).send(
-          bookingId: widget.bookingId,
-          senderId: _myId!,
-          content: text,
-        );
+    await ref
+        .read(chatRepoProvider)
+        .send(bookingId: widget.bookingId, senderId: _myId!, content: text);
     _sending = false;
     await _load();
   }
@@ -84,7 +99,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       appBar: AppBar(
         title: Row(
           children: [
-            const Text('Worker'),
+            Flexible(child: Text(_title, overflow: TextOverflow.ellipsis)),
             const SizedBox(width: KwSpacing.sm),
             Icon(Icons.circle, size: 8, color: KwColors.green),
             const SizedBox(width: 2),
@@ -104,14 +119,18 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   final m = _messages[i];
                   final mine = m.senderId == _myId;
                   return Align(
-                    alignment:
-                        mine ? Alignment.centerRight : Alignment.centerLeft,
+                    alignment: mine
+                        ? Alignment.centerRight
+                        : Alignment.centerLeft,
                     child: Container(
                       margin: const EdgeInsets.only(bottom: KwSpacing.sm),
                       padding: const EdgeInsets.symmetric(
-                          horizontal: KwSpacing.lg, vertical: KwSpacing.md),
+                        horizontal: KwSpacing.lg,
+                        vertical: KwSpacing.md,
+                      ),
                       constraints: BoxConstraints(
-                          maxWidth: MediaQuery.sizeOf(context).width * .72),
+                        maxWidth: MediaQuery.sizeOf(context).width * .72,
+                      ),
                       decoration: BoxDecoration(
                         color: mine ? KwColors.primary : KwColors.surface,
                         borderRadius: BorderRadius.circular(KwRadius.button),
@@ -120,12 +139,20 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
-                          Text(m.content,
-                              style: TextStyle(
-                                  color: mine ? Colors.white : KwColors.dark)),
+                          Text(
+                            m.content,
+                            style: TextStyle(
+                              color: mine ? Colors.white : KwColors.dark,
+                            ),
+                          ),
                           const SizedBox(height: 2),
-                          Text(mine ? '✓✓' : '',
-                              style: const TextStyle(fontSize: 10, color: Colors.white70)),
+                          Text(
+                            mine ? (m.isRead ? '✓✓ Read' : '✓ Sent') : '',
+                            style: const TextStyle(
+                              fontSize: 10,
+                              color: Colors.white70,
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -142,7 +169,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                       controller: _ctrl,
                       onSubmitted: (_) => _send(),
                       textInputAction: TextInputAction.send,
-                      decoration: const InputDecoration(hintText: 'Type a message…'),
+                      decoration: const InputDecoration(
+                        hintText: 'Type a message…',
+                      ),
                     ),
                   ),
                   IconButton.filled(

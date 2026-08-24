@@ -12,7 +12,8 @@ class RoleSelectionScreen extends ConsumerStatefulWidget {
   const RoleSelectionScreen({super.key});
 
   @override
-  ConsumerState<RoleSelectionScreen> createState() => _RoleSelectionScreenState();
+  ConsumerState<RoleSelectionScreen> createState() =>
+      _RoleSelectionScreenState();
 }
 
 class _RoleSelectionScreenState extends ConsumerState<RoleSelectionScreen> {
@@ -34,7 +35,9 @@ class _RoleSelectionScreenState extends ConsumerState<RoleSelectionScreen> {
       return;
     }
     setState(() => _busy = true);
-    await ref.read(authControllerProvider.notifier).finishRoleSelection(
+    await ref
+        .read(authControllerProvider.notifier)
+        .finishRoleSelection(
           name: _nameCtrl.text.trim(),
           asWorker: asWorker,
           city: '',
@@ -56,12 +59,13 @@ class _RoleSelectionScreenState extends ConsumerState<RoleSelectionScreen> {
             TextFormField(
               controller: _nameCtrl,
               textCapitalization: TextCapitalization.words,
-              decoration:
-                  const InputDecoration(hintText: 'e.g. Rohit Sharma'),
+              decoration: const InputDecoration(hintText: 'e.g. Rohit Sharma'),
             ),
             const SizedBox(height: KwSpacing.md),
-            Text('How will you use KaamWala?',
-                style: Theme.of(context).textTheme.titleSmall),
+            Text(
+              'How will you use KaamWala?',
+              style: Theme.of(context).textTheme.titleSmall,
+            ),
             const SizedBox(height: KwSpacing.md),
             _roleCard(
               emoji: '🏠',
@@ -83,16 +87,17 @@ class _RoleSelectionScreenState extends ConsumerState<RoleSelectionScreen> {
               onPressed: _busy ? null : () => _submit(_worker),
               child: _busy
                   ? const SizedBox(
-                      width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
                   : const Text('Continue'),
             ),
             const SizedBox(height: KwSpacing.sm),
             Text(
               'This choice is FINAL. One phone number = one role.',
               textAlign: TextAlign.center,
-              style: Theme.of(context)
-                  .textTheme
-                  .labelMedium
+              style: Theme.of(context).textTheme.labelMedium
                   ?.copyWith(color: KwColors.muted),
             ),
           ],
@@ -113,8 +118,9 @@ class _RoleSelectionScreenState extends ConsumerState<RoleSelectionScreen> {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(KwRadius.card),
         side: BorderSide(
-            color: selected ? KwColors.primary : Colors.transparent,
-            width: 2),
+          color: selected ? KwColors.primary : Colors.transparent,
+          width: 2,
+        ),
       ),
       child: InkWell(
         onTap: onTap,
@@ -129,17 +135,17 @@ class _RoleSelectionScreenState extends ConsumerState<RoleSelectionScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(title,
-                        style: Theme.of(context)
-                            .textTheme
-                            .titleMedium
-                            ?.copyWith(fontWeight: FontWeight.w700)),
+                    Text(
+                      title,
+                      style: Theme.of(context).textTheme.titleMedium
+                          ?.copyWith(fontWeight: FontWeight.w700),
+                    ),
                     const SizedBox(height: 2),
-                    Text(body,
-                        style: Theme.of(context)
-                            .textTheme
-                            .bodySmall
-                            ?.copyWith(color: KwColors.muted)),
+                    Text(
+                      body,
+                      style: Theme.of(context).textTheme.bodySmall
+                          ?.copyWith(color: KwColors.muted),
+                    ),
                   ],
                 ),
               ),

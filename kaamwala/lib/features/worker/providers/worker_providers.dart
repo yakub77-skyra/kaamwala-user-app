@@ -32,8 +32,11 @@ class WorkerJobsController extends AsyncNotifier<List<Booking>> {
   Future<bool> accept(Booking b) async {
     final res = await ref
         .read(workerRepoProvider)
-        .updateStatus(b.id, BookingStatus.accepted,
-            expectedFrom: BookingStatus.pending);
+        .updateStatus(
+          b.id,
+          BookingStatus.accepted,
+          expectedFrom: BookingStatus.pending,
+        );
     final ok = res is Success;
     if (ok) await refresh();
     return ok;
@@ -41,16 +44,21 @@ class WorkerJobsController extends AsyncNotifier<List<Booking>> {
 
   /// Decline removes the request from the pipeline.
   Future<void> decline(Booking b) async {
-    await ref.read(workerRepoProvider).updateStatus(
-        b.id, BookingStatus.declined,
-        expectedFrom: BookingStatus.pending);
+    await ref
+        .read(workerRepoProvider)
+        .updateStatus(
+          b.id,
+          BookingStatus.declined,
+          expectedFrom: BookingStatus.pending,
+        );
     await refresh();
   }
 }
 
 final workerJobsProvider =
     AsyncNotifierProvider<WorkerJobsController, List<Booking>>(
-        WorkerJobsController.new);
+      WorkerJobsController.new,
+    );
 
 /// All non-terminal bookings for this worker (accepted -> in progress).
 class ActiveJobsController extends AsyncNotifier<List<Booking>> {
@@ -62,9 +70,9 @@ class ActiveJobsController extends AsyncNotifier<List<Booking>> {
       BookingStatus.arrived,
       BookingStatus.inProgress,
     ];
-    final result = await ref.read(workerRepoProvider).myBookings(
-          statuses: SupabaseService.isReady ? statuses : null,
-        );
+    final result = await ref
+        .read(workerRepoProvider)
+        .myBookings(statuses: SupabaseService.isReady ? statuses : null);
     return switch (result) {
       Success(:final data) => data,
       Error() => [],
@@ -79,7 +87,8 @@ class ActiveJobsController extends AsyncNotifier<List<Booking>> {
 
 final activeJobsProvider =
     AsyncNotifierProvider<ActiveJobsController, List<Booking>>(
-        ActiveJobsController.new);
+      ActiveJobsController.new,
+    );
 
 /// Completed bookings - earnings history (W7). Earnings shown are the
 /// server-computed worker_earning values, never recalculated client-side.
@@ -103,17 +112,19 @@ class CompletedJobsController extends AsyncNotifier<List<Booking>> {
 
 final completedJobsProvider =
     AsyncNotifierProvider<CompletedJobsController, List<Booking>>(
-        CompletedJobsController.new);
+      CompletedJobsController.new,
+    );
 
 /// Single booking by id for the job detail screen (W5).
-final bookingByIdProvider =
-    FutureProvider.autoDispose.family<Booking?, String>((ref, id) async {
-  final result = await ref.watch(workerRepoProvider).bookingById(id);
-  return switch (result) {
-    Success(:final data) => data,
-    Error() => null,
-  };
-});
+final bookingByIdProvider = FutureProvider.autoDispose.family<Booking?, String>(
+  (ref, id) async {
+    final result = await ref.watch(workerRepoProvider).bookingById(id);
+    return switch (result) {
+      Success(:final data) => data,
+      Error() => null,
+    };
+  },
+);
 
 /// Dashboard aggregates (W3): counts + sums over server-stored values.
 class WorkerDashboardStats {

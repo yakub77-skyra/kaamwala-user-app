@@ -57,17 +57,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             Center(
               child: Text(
                 'KaamWala',
-                style: Theme.of(context)
-                    .textTheme
-                    .headlineLarge
+                style: Theme.of(context).textTheme.headlineLarge
                     ?.copyWith(fontWeight: FontWeight.w800),
               ),
             ),
             const SizedBox(height: KwSpacing.sm),
             const Center(child: Text('Find verified workers near you')),
             const SizedBox(height: KwSpacing.xxl),
-            Text('Phone Number',
-                style: Theme.of(context).textTheme.titleSmall),
+            Text('Phone Number', style: Theme.of(context).textTheme.titleSmall),
             const SizedBox(height: KwSpacing.sm),
             Row(
               children: [
@@ -86,8 +83,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     controller: _phoneCtrl,
                     keyboardType: TextInputType.phone,
                     maxLength: 12,
-                    decoration:
-                        const InputDecoration(counterText: '', hintText: '98765 43210'),
+                    decoration: const InputDecoration(
+                      counterText: '',
+                      hintText: '98765 43210',
+                    ),
                   ),
                 ),
               ],
@@ -95,14 +94,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             const SizedBox(height: KwSpacing.lg),
             ElevatedButton(onPressed: _sendOtp, child: const Text('Send OTP')),
             const SizedBox(height: KwSpacing.lg),
-            Row(children: [
-              const Expanded(child: Divider()),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: KwSpacing.md),
-                child: Text('OR', style: Theme.of(context).textTheme.labelSmall),
-              ),
-              const Expanded(child: Divider()),
-            ]),
+            Row(
+              children: [
+                const Expanded(child: Divider()),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: KwSpacing.md),
+                  child: Text(
+                    'OR',
+                    style: Theme.of(context).textTheme.labelSmall,
+                  ),
+                ),
+                const Expanded(child: Divider()),
+              ],
+            ),
             const SizedBox(height: KwSpacing.md),
             OutlinedButton(
               onPressed: () => context.go('/login/otp'),

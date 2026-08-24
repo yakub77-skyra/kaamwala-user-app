@@ -3,6 +3,8 @@ library;
 
 import 'dart:typed_data';
 
+import 'package:supabase_flutter/supabase_flutter.dart';
+
 import 'package:kaamwala/core/constants/app_constants.dart';
 import 'package:kaamwala/core/error/failure.dart';
 import 'package:kaamwala/models/booking.dart';
@@ -15,6 +17,9 @@ class WorkerRegistrationData {
   int priceMin = 300;
   Uint8List? aadharFrontBytes;
   Uint8List? aadharBackBytes;
+
+  /// Optional work photos (max 5, CS-05) -> PUBLIC portfolios bucket.
+  final List<Uint8List> portfolioBytes = [];
 }
 
 class WorkerRepository {
@@ -38,6 +43,24 @@ class WorkerRepository {
         await bucket.uploadBinary('$uid/back.jpg', d.aadharBackBytes!);
         backUrl = '$uid/back.jpg';
       }
+
+      // Work photos -> public portfolios bucket, public URLs on the row
+      // (DB check caps the array at 5; we cap earlier for UX).
+      final portfolioUrls = <String>[];
+      if (d.portfolioBytes.isNotEmpty) {
+        final pf = SupabaseService.client.storage.from('portfolios');
+        for (var i = 0; i < d.portfolioBytes.length && i < 5; i++) {
+          final path =
+              '$uid/work_${DateTime.now().millisecondsSinceEpoch}_$i.jpg';
+          await pf.uploadBinary(
+            path,
+            d.portfolioBytes[i],
+            fileOptions: const FileOptions(upsert: true),
+          );
+          portfolioUrls.add(pf.getPublicUrl(path));
+        }
+      }
+
       await SupabaseService.client.from('workers').upsert({
         'user_id': uid,
         'city': d.city,
@@ -46,6 +69,7 @@ class WorkerRepository {
         'approval_status': 'pending',
         'aadhar_front_url': frontUrl,
         'aadhar_back_url': backUrl,
+        'portfolio_urls': portfolioUrls,
       });
       return const Success(null);
     } catch (e) {
@@ -61,7 +85,8 @@ class WorkerRepository {
     try {
       await SupabaseService.client
           .from('workers')
-          .update({'is_available': available}).eq('user_id', uid);
+          .update({'is_available': available})
+          .eq('user_id', uid);
       return const Success(null);
     } catch (e) {
       return Error(mapException(e));
@@ -77,16 +102,16 @@ class WorkerRepository {
   /// Bookings for this worker filtered by status - dashboard, active jobs,
   /// earnings all read from here. Money fields are server-computed values
   /// that we only display (NFR-SEC-02).
-  Future<Result<List<Booking>>> myBookings(
-      {List<BookingStatus>? statuses}) async {
+  Future<Result<List<Booking>>> myBookings({
+    List<BookingStatus>? statuses,
+  }) async {
     if (!SupabaseService.isReady) return const Success([]);
     try {
       var query = SupabaseService.client
           .from('bookings')
           .select('*, users(name)');
       if (statuses != null && statuses.isNotEmpty) {
-        query = query.inFilter(
-            'status', [for (final s in statuses) s.dbValue]);
+        query = query.inFilter('status', [for (final s in statuses) s.dbValue]);
       }
       final rows = await query.order('created_at', ascending: false).limit(100);
       return Success([for (final r in rows) Booking.fromMap(r)]);
@@ -131,13 +156,17 @@ class WorkerRepository {
   /// Moves a booking forward. [expectedFrom] guards against out-of-order
   /// taps (e.g. completing before arriving) - the update simply no-ops
   /// when the row is no longer in the expected state.
-  Future<Result<void>> updateStatus(String bookingId, BookingStatus s,
-      {BookingStatus? expectedFrom}) async {
+  Future<Result<void>> updateStatus(
+    String bookingId,
+    BookingStatus s, {
+    BookingStatus? expectedFrom,
+  }) async {
     if (!SupabaseService.isReady) return const Success(null);
     try {
       var query = SupabaseService.client
           .from('bookings')
-          .update({'status': s.dbValue}).eq('id', bookingId);
+          .update({'status': s.dbValue})
+          .eq('id', bookingId);
       if (expectedFrom != null) {
         query = query.eq('status', expectedFrom.dbValue);
       }

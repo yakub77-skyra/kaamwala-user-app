@@ -112,8 +112,10 @@ abstract final class AppTheme {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: KwColors.surface,
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: KwSpacing.lg, vertical: 14),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: KwSpacing.lg,
+          vertical: 14,
+        ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(KwRadius.button),
           borderSide: const BorderSide(color: Color(0x291A1A2E)),
@@ -135,18 +137,22 @@ abstract final class AppTheme {
         height: KwSizes.bottomNavHeight,
         backgroundColor: KwColors.surface,
         indicatorColor: KwColors.primaryLight,
-        iconTheme: WidgetStateProperty.resolveWith((states) => IconThemeData(
-              color: states.contains(WidgetState.selected)
-                  ? KwColors.primary
-                  : KwColors.muted,
-            )),
-        labelTextStyle: WidgetStateProperty.resolveWith((states) => TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: states.contains(WidgetState.selected)
-                  ? KwColors.primary
-                  : KwColors.muted,
-            )),
+        iconTheme: WidgetStateProperty.resolveWith(
+          (states) => IconThemeData(
+            color: states.contains(WidgetState.selected)
+                ? KwColors.primary
+                : KwColors.muted,
+          ),
+        ),
+        labelTextStyle: WidgetStateProperty.resolveWith(
+          (states) => TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: states.contains(WidgetState.selected)
+                ? KwColors.primary
+                : KwColors.muted,
+          ),
+        ),
       ),
       dividerTheme: const DividerThemeData(color: Color(0x141A1A2E)),
       snackBarTheme: SnackBarThemeData(

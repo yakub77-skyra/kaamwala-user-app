@@ -17,9 +17,24 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   final _controller = PageController();
 
   static const _slides = [
-    (icon: Icons.verified_user, title: 'Find Verified Workers', body: 'Aadhar-checked plumbers & electricians near you.', emoji: '🔍'),
-    (icon: Icons.bolt, title: 'Book in 3 Taps', body: 'Pick a worker, describe the job, done. No long forms.', emoji: '⚡'),
-    (icon: Icons.currency_rupee, title: 'Pay Safely with UPI', body: 'GPay, PhonePe, Paytm - pay only when booked.', emoji: '💰'),
+    (
+      icon: Icons.verified_user,
+      title: 'Find Verified Workers',
+      body: 'Aadhar-checked plumbers & electricians near you.',
+      emoji: '🔍',
+    ),
+    (
+      icon: Icons.bolt,
+      title: 'Book in 3 Taps',
+      body: 'Pick a worker, describe the job, done. No long forms.',
+      emoji: '⚡',
+    ),
+    (
+      icon: Icons.currency_rupee,
+      title: 'Pay Safely with UPI',
+      body: 'GPay, PhonePe, Paytm - pay only when booked.',
+      emoji: '💰',
+    ),
   ];
 
   @override
@@ -69,18 +84,14 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       Text(
                         s.title,
                         textAlign: TextAlign.center,
-                        style: Theme.of(context)
-                            .textTheme
-                            .headlineSmall
+                        style: Theme.of(context).textTheme.headlineSmall
                             ?.copyWith(fontWeight: FontWeight.w800),
                       ),
                       const SizedBox(height: KwSpacing.md),
                       Text(
                         s.body,
                         textAlign: TextAlign.center,
-                        style: Theme.of(context)
-                            .textTheme
-                            .bodyMedium
+                        style: Theme.of(context).textTheme.bodyMedium
                             ?.copyWith(color: KwColors.muted),
                       ),
                     ],
@@ -90,7 +101,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             ),
           ),
           Padding(
-            padding: const EdgeInsets.fromLTRB(KwSpacing.xl, 0, KwSpacing.xl, KwSpacing.xxl),
+            padding: const EdgeInsets.fromLTRB(
+              KwSpacing.xl,
+              0,
+              KwSpacing.xl,
+              KwSpacing.xxl,
+            ),
             child: Column(
               children: [
                 AnimatedBuilder(
@@ -105,7 +121,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                           margin: const EdgeInsets.symmetric(horizontal: 4),
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color: (_controller.hasClients &&
+                            color:
+                                (_controller.hasClients &&
                                     _controller.page!.round() == i)
                                 ? KwColors.primary
                                 : Colors.grey.shade300,

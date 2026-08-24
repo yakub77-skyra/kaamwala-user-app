@@ -33,18 +33,23 @@ class _RateReviewScreenState extends ConsumerState<RateReviewScreen> {
   Future<void> _submit() async {
     if (_busy || _stars == 0) return;
     setState(() => _busy = true);
-    await ref.read(reviewsRepoProvider).submitReview(Review(
-          id: '',
-          bookingId: widget.bookingId,
-          workerId: 'worker-id',
-          clientId: 'client-id',
-          rating: _stars,
-          text: _textCtrl.text.trim(),
-          tags: _tags.toList(),
-        ));
+    await ref
+        .read(reviewsRepoProvider)
+        .submitReview(
+          Review(
+            id: '',
+            bookingId: widget.bookingId,
+            workerId: 'worker-id',
+            clientId: 'client-id',
+            rating: _stars,
+            text: _textCtrl.text.trim(),
+            tags: _tags.toList(),
+          ),
+        );
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('🎉 Thanks for rating your worker!')));
+      const SnackBar(content: Text('🎉 Thanks for rating your worker!')),
+    );
     Navigator.of(context).pop();
   }
 
@@ -56,7 +61,12 @@ class _RateReviewScreenState extends ConsumerState<RateReviewScreen> {
         child: ListView(
           padding: const EdgeInsets.all(KwSpacing.xl),
           children: [
-            Center(child: CircleAvatar(radius: 36, child: const Icon(Icons.person, size: 32))),
+            Center(
+              child: CircleAvatar(
+                radius: 36,
+                child: const Icon(Icons.person, size: 32),
+              ),
+            ),
             const SizedBox(height: KwSpacing.lg),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -77,8 +87,7 @@ class _RateReviewScreenState extends ConsumerState<RateReviewScreen> {
               controller: _textCtrl,
               maxLines: 4,
               maxLength: 500,
-              decoration:
-                  const InputDecoration(hintText: 'How was the work?'),
+              decoration: const InputDecoration(hintText: 'How was the work?'),
             ),
             const SizedBox(height: KwSpacing.sm),
             Wrap(
@@ -89,15 +98,20 @@ class _RateReviewScreenState extends ConsumerState<RateReviewScreen> {
                   FilterChip(
                     label: Text(t),
                     selected: _tags.contains(t),
-                    onSelected: (_) => setState(() =>
-                        _tags.contains(t) ? _tags.remove(t) : _tags.add(t)),
+                    onSelected: (_) => setState(
+                      () => _tags.contains(t) ? _tags.remove(t) : _tags.add(t),
+                    ),
                   ),
               ],
             ),
             const SizedBox(height: KwSpacing.xl),
             ElevatedButton.icon(
               icon: _busy
-                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
                   : const Icon(Icons.rate_review_outlined),
               label: const Text('Submit Review'),
               onPressed: _stars == 0 || _busy ? null : _submit,

@@ -22,7 +22,8 @@ class ChatRepository {
           .eq('booking_id', bookingId)
           .order('created_at', ascending: false)
           .limit(50);
-      final msgs = [for (final r in rows) ChatMessage.fromMap(r)].reversed.toList();
+      final msgs = [for (final r in rows) ChatMessage.fromMap(r)].reversed
+          .toList();
       return Success(msgs);
     } catch (e) {
       return Error(mapException(e));
@@ -42,6 +43,25 @@ class ChatRepository {
         'message_type': ChatMessage.typeText,
         'content': content,
       });
+      return const Success(null);
+    } catch (e) {
+      return Error(mapException(e));
+    }
+  }
+
+  /// Marks the counterpart's messages as read (FR-CHAT-03 read receipts).
+  Future<Result<void>> markRead({
+    required String bookingId,
+    required String readerId,
+  }) async {
+    if (!SupabaseService.isReady) return const Success(null);
+    try {
+      await SupabaseService.client
+          .from('chat_messages')
+          .update({'is_read': true})
+          .eq('booking_id', bookingId)
+          .neq('sender_id', readerId)
+          .eq('is_read', false);
       return const Success(null);
     } catch (e) {
       return Error(mapException(e));
@@ -68,8 +88,8 @@ class ChatRepository {
 
   static Future<void> unsubscribe(RealtimeChannel channel) =>
       SupabaseService.isReady
-          ? SupabaseService.client.removeChannel(channel)
-          : Future.value();
+      ? SupabaseService.client.removeChannel(channel)
+      : Future.value();
 }
 
 class ReviewsRepository {

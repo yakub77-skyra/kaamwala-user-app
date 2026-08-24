@@ -39,7 +39,9 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
       _stage = PayStage.creating;
       _error = null;
     });
-    final result = await ref.read(bookingsRepoProvider).createOrder(widget.bookingId);
+    final result = await ref
+        .read(bookingsRepoProvider)
+        .createOrder(widget.bookingId);
     switch (result) {
       case Success(:final data):
         _razorpayOrderId = data['order_id'] as String?;
@@ -83,11 +85,11 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
   }
 
   String get _statusText => switch (_stage) {
-        PayStage.creating => '◌ Creating order…',
-        PayStage.checkout => 'Ready to pay',
-        PayStage.processing => '◌ Processing…',
-        PayStage.success => '✅ Success',
-      };
+    PayStage.creating => '◌ Creating order…',
+    PayStage.checkout => 'Ready to pay',
+    PayStage.processing => '◌ Processing…',
+    PayStage.success => '✅ Success',
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -99,14 +101,16 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
           child: _stage == PayStage.success
               ? ElevatedButton(
                   onPressed: () => context.go('/bookings'),
-                  child: const Text('View My Bookings'))
+                  child: const Text('View My Bookings'),
+                )
               : ElevatedButton.icon(
                   icon: const Icon(Icons.currency_rupee),
                   label: Text('Pay ₹${_amountPaise ~/ 100}'),
                   onPressed:
-                      (_razorpayOrderId == null || _stage == PayStage.processing)
-                          ? null
-                          : _openCheckout,
+                      (_razorpayOrderId == null ||
+                          _stage == PayStage.processing)
+                      ? null
+                      : _openCheckout,
                 ),
         ),
       ),
@@ -118,11 +122,11 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
             child: ListTile(
               title: Text('Booking #${widget.bookingId.substring(0, 8)}'),
               subtitle: const Text('Booking Fee'),
-              trailing: Text('₹${_amountPaise ~/ 100}',
-                  style: Theme.of(context)
-                      .textTheme
-                      .titleMedium
-                      ?.copyWith(fontWeight: FontWeight.w800)),
+              trailing: Text(
+                '₹${_amountPaise ~/ 100}',
+                style: Theme.of(context).textTheme.titleMedium
+                    ?.copyWith(fontWeight: FontWeight.w800),
+              ),
             ),
           ),
           const SizedBox(height: KwSpacing.lg),
@@ -133,34 +137,39 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
             runSpacing: KwSpacing.sm,
             children: [
               for (final upi in ['GPay', 'PhonePe', 'Paytm', 'Other UPI'])
-                FilterChip(label: Text(upi), selected: upi == 'GPay', onSelected: (_) {}),
-              FilterChip(label: const Text('Card / NetBanking'), onSelected: (_) {}),
+                FilterChip(
+                  label: Text(upi),
+                  selected: upi == 'GPay',
+                  onSelected: (_) {},
+                ),
+              FilterChip(
+                label: const Text('Card / NetBanking'),
+                onSelected: (_) {},
+              ),
             ],
           ),
           if (_error != null) ...[
             const SizedBox(height: KwSpacing.md),
-            Text('⚠️ $_error',
-                style: Theme.of(context)
-                    .textTheme
-                    .bodySmall
-                    ?.copyWith(color: KwColors.red)),
+            Text(
+              '⚠️ $_error',
+              style: Theme.of(context).textTheme.bodySmall
+                  ?.copyWith(color: KwColors.red),
+            ),
           ],
           const SizedBox(height: KwSpacing.xl),
           Center(
-            child: Text(_statusText,
-                style: Theme.of(context)
-                    .textTheme
-                    .labelLarge
-                    ?.copyWith(color: KwColors.muted)),
+            child: Text(
+              _statusText,
+              style: Theme.of(context).textTheme.labelLarge
+                  ?.copyWith(color: KwColors.muted),
+            ),
           ),
           const SizedBox(height: KwSpacing.sm),
           Text(
             'Payment verified server-side via webhook (HMAC-SHA256).\n'
             'Cancel before worker accepts = full ₹20 refund.',
             textAlign: TextAlign.center,
-            style: Theme.of(context)
-                .textTheme
-                .labelSmall
+            style: Theme.of(context).textTheme.labelSmall
                 ?.copyWith(color: KwColors.muted),
           ),
         ],

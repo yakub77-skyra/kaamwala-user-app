@@ -21,20 +21,24 @@ class JobRequestsScreen extends ConsumerWidget {
       body: jobs.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => const EmptyState(
-            emoji: '⚠️', title: 'Could not load jobs', subtitle: 'Pull to retry.'),
+          emoji: '⚠️',
+          title: 'Could not load jobs',
+          subtitle: 'Pull to retry.',
+        ),
         data: (list) => list.isEmpty
             ? const EmptyState(
                 emoji: '📭',
                 title: 'No new jobs right now',
-                subtitle:
-                    'New requests appear here the moment a client pays the ₹20 fee.')
+                subtitle: 'New requests appear here the moment a client pays the ₹20 fee.',
+              )
             : RefreshIndicator(
-                onRefresh:
-                    () => ref.read(workerJobsProvider.notifier).refresh(),
+                onRefresh: () =>
+                    ref.read(workerJobsProvider.notifier).refresh(),
                 child: ListView.builder(
                   padding: const EdgeInsets.all(KwSpacing.lg),
                   itemCount: list.length,
-                  itemBuilder: (context, i) => _JobRequestCard(booking: list[i]),
+                  itemBuilder: (context, i) =>
+                      _JobRequestCard(booking: list[i]),
                 ),
               ),
       ),
@@ -88,29 +92,34 @@ class _JobRequestCardState extends ConsumerState<_JobRequestCard> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(children: [
-              Text(b.category.labelHi, style: const TextStyle(fontSize: 16)),
-              const SizedBox(width: KwSpacing.md),
-              Expanded(
-                child: Text('${b.category.labelEn} • ${b.description}',
+            Row(
+              children: [
+                Text(b.category.labelHi, style: const TextStyle(fontSize: 16)),
+                const SizedBox(width: KwSpacing.md),
+                Expanded(
+                  child: Text(
+                    '${b.category.labelEn} • ${b.description}',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.titleMedium),
-              ),
-            ]),
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                ),
+              ],
+            ),
             const SizedBox(height: 4),
-            Text(_meta,
-                style: Theme.of(context)
-                    .textTheme
-                    .bodySmall
-                    ?.copyWith(color: KwColors.muted)),
+            Text(
+              _meta,
+              style: Theme.of(context).textTheme.bodySmall
+                  ?.copyWith(color: KwColors.muted),
+            ),
             const SizedBox(height: KwSpacing.md),
             Row(
               children: [
                 Expanded(
                   child: OutlinedButton(
-                    style:
-                        OutlinedButton.styleFrom(foregroundColor: KwColors.red),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: KwColors.red,
+                    ),
                     onPressed: _busy ? null : _decline,
                     child: const Text('Decline'),
                   ),
@@ -122,8 +131,8 @@ class _JobRequestCardState extends ConsumerState<_JobRequestCard> {
                         ? const SizedBox(
                             width: 18,
                             height: 18,
-                            child:
-                                CircularProgressIndicator(strokeWidth: 2))
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
                         : const Icon(Icons.check, size: 18),
                     label: const Text('Accept'),
                     onPressed: _busy ? null : _accept,

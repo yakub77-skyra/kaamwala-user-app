@@ -28,19 +28,21 @@ class BookingsRepository {
     required num estimateMax,
   }) async {
     if (!SupabaseService.isReady) {
-      return Success(Booking(
-        id: 'demo-booking',
-        ref: 'KW-2026-0001',
-        clientId: clientId,
-        workerId: workerId,
-        category: category,
-        description: description,
-        serviceDate: serviceDate,
-        timeSlot: timeSlot,
-        address: address,
-        estimateMin: estimateMin,
-        estimateMax: estimateMax,
-      ));
+      return Success(
+        Booking(
+          id: 'demo-booking',
+          ref: 'KW-2026-0001',
+          clientId: clientId,
+          workerId: workerId,
+          category: category,
+          description: description,
+          serviceDate: serviceDate,
+          timeSlot: timeSlot,
+          address: address,
+          estimateMin: estimateMin,
+          estimateMax: estimateMax,
+        ),
+      );
     }
     try {
       final row = await SupabaseService.client
@@ -50,8 +52,7 @@ class BookingsRepository {
             'worker_id': workerId,
             'category': category.dbValue,
             'description': description,
-            'service_date':
-                serviceDate.toIso8601String().substring(0, 10),
+            'service_date': serviceDate.toIso8601String().substring(0, 10),
             'time_slot': timeSlot,
             'address': address,
             'status': BookingStatus.pending.dbValue,
@@ -79,7 +80,9 @@ class BookingsRepository {
       );
       final data = Map<String, dynamic>.from(res.data as Map);
       if (data['error'] != null) {
-        return Error(PaymentFailure(data['error'] as String? ?? 'Payment failed'));
+        return Error(
+          PaymentFailure(data['error'] as String? ?? 'Payment failed'),
+        );
       }
       return Success(data);
     } catch (e) {
@@ -110,8 +113,10 @@ class BookingsRepository {
           .update({'status': BookingStatus.cancelled.dbValue})
           .eq('id', bookingId)
           .eq('status', BookingStatus.pending.dbValue);
-      await SupabaseService.client.functions
-          .invoke('verify-payment', body: {'type': 'refund', 'booking_id': bookingId});
+      await SupabaseService.client.functions.invoke(
+        'verify-payment',
+        body: {'type': 'refund', 'booking_id': bookingId},
+      );
       return const Success(null);
     } catch (e) {
       return Error(mapException(e));
@@ -128,6 +133,28 @@ class BookingsRepository {
           .order('created_at', ascending: false)
           .limit(50);
       return Success([for (final r in rows) Booking.fromMap(r)]);
+    } catch (e) {
+      return Error(mapException(e));
+    }
+  }
+
+  /// Display name of the OTHER participant of a booking (chat header).
+  /// Works from either side thanks to the users/workers embeds.
+  Future<Result<String>> counterpartName(String bookingId) async {
+    if (!SupabaseService.isReady) return const Success('');
+    try {
+      final row = await SupabaseService.client
+          .from('bookings')
+          .select('client_id, users(name), workers(id, users(name))')
+          .eq('id', bookingId)
+          .maybeSingle();
+      if (row == null) return const Success('');
+      final myId = SupabaseService.currentUserId;
+      final clientName = ((row['users'] as Map?)?['name'] ?? '') as String;
+      final workerMap = (row['workers'] as Map?)?['users'] as Map?;
+      final workerName = ((workerMap?['name'] ?? '') as String);
+      if (row['client_id'] == myId) return Success(workerName);
+      return Success(clientName);
     } catch (e) {
       return Error(mapException(e));
     }

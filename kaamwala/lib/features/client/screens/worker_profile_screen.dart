@@ -62,23 +62,33 @@ class _WorkerProfileScreenState extends ConsumerState<WorkerProfileScreen> {
           return ListView(
             padding: const EdgeInsets.all(KwSpacing.lg),
             children: [
-              Center(child: CircleAvatar(radius: 44, child: const Icon(Icons.person, size: 40))),
+              Center(
+                child: CircleAvatar(
+                  radius: 44,
+                  child: const Icon(Icons.person, size: 40),
+                ),
+              ),
               const SizedBox(height: KwSpacing.md),
               Center(
-                child: Text(w.name.isEmpty ? 'Ramesh Kumar' : w.name,
-                    style: Theme.of(context)
-                        .textTheme
-                        .headlineSmall
-                        ?.copyWith(fontWeight: FontWeight.w800)),
+                child: Text(
+                  w.name.isEmpty ? 'Worker' : w.name,
+                  style: Theme.of(context).textTheme.headlineSmall
+                      ?.copyWith(fontWeight: FontWeight.w800),
+                ),
               ),
               const SizedBox(height: KwSpacing.xs),
               Center(
-                  child: Text(
-                      '${w.category.labelEn} • ${w.city}   ⭐ ${w.ratingAvg.toStringAsFixed(1)} (${w.ratingCount})')),
+                child: Text(
+                  '${w.category.labelEn} • ${w.city}   ⭐ ${w.ratingAvg.toStringAsFixed(1)} (${w.ratingCount})',
+                ),
+              ),
               const SizedBox(height: KwSpacing.sm),
               Center(
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
                   decoration: BoxDecoration(
                     color: (w.isVerified ? KwColors.green : KwColors.gold)
                         .withValues(alpha: .12),
@@ -87,31 +97,36 @@ class _WorkerProfileScreenState extends ConsumerState<WorkerProfileScreen> {
                   child: Text(
                     w.isVerified ? '✅ Aadhar Verified' : '⚠️ Unverified',
                     style: TextStyle(
-                        color: w.isVerified ? KwColors.green : KwColors.gold,
-                        fontWeight: FontWeight.w700),
+                      color: w.isVerified ? KwColors.green : KwColors.gold,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
               ),
               const Divider(height: KwSpacing.xxl),
               Row(
                 children: [
-                  Text('₹${w.priceMin}–₹${w.priceMax}',
-                      style: Theme.of(context)
-                          .textTheme
-                          .titleMedium
-                          ?.copyWith(fontWeight: FontWeight.w800)),
+                  Text(
+                    '₹${w.priceMin}–₹${w.priceMax}',
+                    style: Theme.of(context).textTheme.titleMedium
+                        ?.copyWith(fontWeight: FontWeight.w800),
+                  ),
                   const Spacer(),
-                  Icon(Icons.circle, size: 10, color: w.isAvailable ? KwColors.green : KwColors.muted),
+                  Icon(
+                    Icons.circle,
+                    size: 10,
+                    color: w.isAvailable ? KwColors.green : KwColors.muted,
+                  ),
                   Text(w.isAvailable ? ' Available' : ' Busy'),
                 ],
               ),
               const Divider(),
               if (w.portfolioUrls.isNotEmpty) ...[
-                Text('WORK PHOTOS',
-                    style: Theme.of(context)
-                        .textTheme
-                        .labelMedium
-                        ?.copyWith(color: KwColors.muted, letterSpacing: 1)),
+                Text(
+                  'WORK PHOTOS',
+                  style: Theme.of(context).textTheme.labelMedium
+                      ?.copyWith(color: KwColors.muted, letterSpacing: 1),
+                ),
                 const SizedBox(height: KwSpacing.sm),
                 SizedBox(
                   height: 84,
@@ -122,26 +137,29 @@ class _WorkerProfileScreenState extends ConsumerState<WorkerProfileScreen> {
                         const SizedBox(width: KwSpacing.sm),
                     itemBuilder: (context, i) => ClipRRect(
                       borderRadius: BorderRadius.circular(KwRadius.button),
-                      child: ColoredBox(color: KwColors.primaryLight, child: const SizedBox(width: 84, height: 84)),
+                      child: ColoredBox(
+                        color: KwColors.primaryLight,
+                        child: const SizedBox(width: 84, height: 84),
+                      ),
                     ),
                   ),
                 ),
                 const SizedBox(height: KwSpacing.lg),
               ],
-              Text('ABOUT',
-                  style: Theme.of(context)
-                      .textTheme
-                      .labelMedium
-                      ?.copyWith(color: KwColors.muted, letterSpacing: 1)),
+              Text(
+                'ABOUT',
+                style: Theme.of(context).textTheme.labelMedium
+                    ?.copyWith(color: KwColors.muted, letterSpacing: 1),
+              ),
               const SizedBox(height: KwSpacing.xs),
               Text(w.bio.isEmpty ? 'Experienced professional.' : w.bio),
               const SizedBox(height: KwSpacing.lg),
               if (w.skills.isNotEmpty) ...[
-                Text('SKILLS',
-                    style: Theme.of(context)
-                        .textTheme
-                        .labelMedium
-                        ?.copyWith(color: KwColors.muted, letterSpacing: 1)),
+                Text(
+                  'SKILLS',
+                  style: Theme.of(context).textTheme.labelMedium
+                      ?.copyWith(color: KwColors.muted, letterSpacing: 1),
+                ),
                 const SizedBox(height: KwSpacing.sm),
                 Wrap(
                   spacing: KwSpacing.sm,
@@ -150,21 +168,21 @@ class _WorkerProfileScreenState extends ConsumerState<WorkerProfileScreen> {
                 ),
               ],
               const SizedBox(height: KwSpacing.lg),
-              Text('REVIEWS (${w.ratingCount})',
-                  style: Theme.of(context)
-                      .textTheme
-                      .labelMedium
-                      ?.copyWith(color: KwColors.muted, letterSpacing: 1)),
+              Text(
+                'REVIEWS (${w.ratingCount})',
+                style: Theme.of(context).textTheme.labelMedium
+                    ?.copyWith(color: KwColors.muted, letterSpacing: 1),
+              ),
               const ListTile(
                 contentPadding: EdgeInsets.zero,
                 leading: Text('⭐⭐⭐⭐⭐'),
                 title: Text('"Very neat work."'),
               ),
-              Text('Booking fee ₹${AppConstants.bookingFeeRupees} applies at checkout.',
-                  style: Theme.of(context)
-                      .textTheme
-                      .labelSmall
-                      ?.copyWith(color: KwColors.muted)),
+              Text(
+                'Booking fee ₹${AppConstants.bookingFeeRupees} applies at checkout.',
+                style: Theme.of(context).textTheme.labelSmall
+                    ?.copyWith(color: KwColors.muted),
+              ),
             ],
           );
         },

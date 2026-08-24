@@ -63,7 +63,7 @@ Deno.serve(async (req) => {
       body: bodyText,
     });
 
-    const delivered = await sendPushToUser(admin, worker.user_id, title, bodyText);
+    const delivered = await sendPushToUser(admin, worker.user_id, title, bodyText, { kind: action === "approve" ? "approved" : "rejected", route: "/w/home" });
     return json({ ok: true, status, push_sent: delivered });
   } catch (e) {
     return fail(e instanceof Error ? e.message : "Approval failed", 500);

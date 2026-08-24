@@ -65,7 +65,9 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
   }
 
   Future<void> _resend() async {
-    if (_busy || _resendsLeft <= 0 || _remaining > _otpExpirySeconds - 30) return;
+    if (_busy || _resendsLeft <= 0 || _remaining > _otpExpirySeconds - 30) {
+      return;
+    }
     setState(() {
       _busy = true;
       _error = null;
@@ -129,7 +131,10 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
         child: ListView(
           padding: const EdgeInsets.all(KwSpacing.xl),
           children: [
-            Text('Sent to $_phone', style: Theme.of(context).textTheme.bodyMedium),
+            Text(
+              'Sent to $_phone',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
             const SizedBox(height: KwSpacing.xl),
             Directionality(
               textDirection: TextDirection.ltr,
@@ -154,9 +159,7 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
               const SizedBox(height: KwSpacing.md),
               Text(
                 '❌ $_error',
-                style: Theme.of(context)
-                    .textTheme
-                    .bodySmall
+                style: Theme.of(context).textTheme.bodySmall
                     ?.copyWith(color: KwColors.red),
               ),
             ],
@@ -168,9 +171,7 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
                     _remaining > 0
                         ? 'Resend in ${(_remaining ~/ 60).toString().padLeft(2, '0')}:${(_remaining % 60).toString().padLeft(2, '0')}   ($_resendsLeft tries)'
                         : 'You can resend now ($_resendsLeft tries left)',
-                    style: Theme.of(context)
-                        .textTheme
-                        .labelMedium
+                    style: Theme.of(context).textTheme.labelMedium
                         ?.copyWith(color: KwColors.muted),
                   ),
                 ),
@@ -187,7 +188,8 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
                   ? const SizedBox(
                       width: 18,
                       height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2))
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
                   : const Icon(Icons.verified_outlined),
               label: const Text('Verify & Continue'),
             ),

@@ -12,7 +12,9 @@ sealed class Failure {
 }
 
 final class NetworkFailure extends Failure {
-  const NetworkFailure([super.message = 'Network problem. Check your internet.']);
+  const NetworkFailure([
+    super.message = 'Network problem. Check your internet.',
+  ]);
 }
 
 final class AuthFailure extends Failure {

@@ -1,0 +1,8 @@
+# KaamWala Android release keystore template.
+# Copy to android/key.properties and fill in real values.
+# NEVER commit key.properties or the .jks/.keystore file itself.
+
+storeFile=../keystores/kaamwala-upload.jks
+storePassword=YOUR_STORE_PASSWORD
+keyAlias=kaamwala-upload
+keyPassword=YOUR_KEY_PASSWORD

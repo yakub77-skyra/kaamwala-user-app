@@ -5,9 +5,7 @@ import 'package:kaamwala/main.dart';
 
 void main() {
   testWidgets('App boots to splash then navigates', (tester) async {
-    await tester.pumpWidget(
-      const ProviderScope(child: KaamWalaApp()),
-    );
+    await tester.pumpWidget(const ProviderScope(child: KaamWalaApp()));
 
     // Splash is showing brand name.
     await tester.pump(const Duration(milliseconds: 50));

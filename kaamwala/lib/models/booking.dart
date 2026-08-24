@@ -103,17 +103,17 @@ class PaymentOrder {
   final DateTime? paidAt;
 
   factory PaymentOrder.fromMap(Map<String, dynamic> map) => PaymentOrder(
-        id: map['id'] as String,
-        bookingId: map['booking_id'] as String,
-        razorpayOrderId: (map['razorpay_order_id'] ?? '') as String,
-        razorpayPaymentId: map['razorpay_payment_id'] as String?,
-        amount: (map['amount'] ?? 0) as num,
-        status: OrderStatus.values.firstWhere(
-          (s) => s.name == (map['status'] ?? 'CREATED'),
-          orElse: () => OrderStatus.created,
-        ),
-        paidAt: DateTime.tryParse((map['paid_at'] ?? '') as String),
-      );
+    id: map['id'] as String,
+    bookingId: map['booking_id'] as String,
+    razorpayOrderId: (map['razorpay_order_id'] ?? '') as String,
+    razorpayPaymentId: map['razorpay_payment_id'] as String?,
+    amount: (map['amount'] ?? 0) as num,
+    status: OrderStatus.values.firstWhere(
+      (s) => s.name == (map['status'] ?? 'CREATED'),
+      orElse: () => OrderStatus.created,
+    ),
+    paidAt: DateTime.tryParse((map['paid_at'] ?? '') as String),
+  );
 }
 
 class Payout {
@@ -134,14 +134,14 @@ class Payout {
   final String? razorpayPayoutId;
 
   factory Payout.fromMap(Map<String, dynamic> map) => Payout(
-        id: map['id'] as String,
-        bookingId: map['booking_id'] as String,
-        workerId: map['worker_id'] as String,
-        amount: (map['amount'] ?? 0) as num,
-        status: PayoutStatus.values.firstWhere(
-          (s) => s.name == (map['status'] ?? 'PENDING'),
-          orElse: () => PayoutStatus.pending,
-        ),
-        razorpayPayoutId: map['razorpay_payout_id'] as String?,
-      );
+    id: map['id'] as String,
+    bookingId: map['booking_id'] as String,
+    workerId: map['worker_id'] as String,
+    amount: (map['amount'] ?? 0) as num,
+    status: PayoutStatus.values.firstWhere(
+      (s) => s.name == (map['status'] ?? 'PENDING'),
+      orElse: () => PayoutStatus.pending,
+    ),
+    razorpayPayoutId: map['razorpay_payout_id'] as String?,
+  );
 }

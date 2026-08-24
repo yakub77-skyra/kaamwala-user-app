@@ -1,10 +1,15 @@
-/// Worker list / search results (Phase 3 C6). Sorted by rating, paginated.
+/// Worker list / search results (Phase 3 C6). Sorted by rating,
+/// name-search filter, live navigation to profiles.
 library;
+
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import 'package:kaamwala/core/theme/app_theme.dart';
+import 'package:kaamwala/features/auth/providers/auth_controller.dart';
 import 'package:kaamwala/features/client/providers/client_providers.dart';
 import 'package:kaamwala/features/shared/widgets/common_widgets.dart';
 
@@ -16,13 +21,35 @@ class WorkerListScreen extends ConsumerStatefulWidget {
 }
 
 class _WorkerListScreenState extends ConsumerState<WorkerListScreen> {
+  final _searchCtrl = TextEditingController();
+  Timer? _debounce;
+  String? _city;
+
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final category = ref.read(selectedCategoryProvider);
-      ref.read(workersByCategoryProvider(category).notifier).load();
-    });
+    final profile = ref.read(authControllerProvider).profile;
+    _city = (profile?.city ?? '').isEmpty ? null : profile!.city;
+    WidgetsBinding.instance.addPostFrameCallback((_) => _load());
+  }
+
+  void _load({String? name}) {
+    final category = ref.read(selectedCategoryProvider);
+    ref
+        .read(workersByCategoryProvider(category).notifier)
+        .load(city: _city, name: name);
+  }
+
+  void _onSearchChanged(String q) {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 350), () => _load(name: q));
+  }
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    _searchCtrl.dispose();
+    super.dispose();
   }
 
   @override
@@ -32,12 +59,14 @@ class _WorkerListScreenState extends ConsumerState<WorkerListScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('${category.labelEn}s • Pune'),
+        title: Text(
+          _city == null
+              ? '${category.labelEn}s'
+              : '${category.labelEn}s • $_city',
+        ),
         actions: [
           IconButton(
-            onPressed: () => ref
-                .read(workersByCategoryProvider(category).notifier)
-                .load(),
+            onPressed: () => _load(name: _searchCtrl.text),
             icon: const Icon(Icons.refresh),
           ),
         ],
@@ -45,41 +74,53 @@ class _WorkerListScreenState extends ConsumerState<WorkerListScreen> {
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(KwSpacing.lg, KwSpacing.sm, KwSpacing.lg, 0),
-            child: TextFormField(
-              decoration:
-                  const InputDecoration(prefixIcon: Icon(Icons.search), hintText: 'Search by name'),
+            padding: const EdgeInsets.fromLTRB(
+              KwSpacing.lg,
+              KwSpacing.sm,
+              KwSpacing.lg,
+              0,
             ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: KwSpacing.lg),
-            child: Row(
-              children: [
-                const Text('Sort: '),
-                FilterChip(
-                  label: const Text('Top Rated ▾'),
-                  selected: true,
-                  onSelected: (_) {},
-                ),
-              ],
+            child: TextFormField(
+              controller: _searchCtrl,
+              onChanged: _onSearchChanged,
+              decoration: InputDecoration(
+                prefixIcon: const Icon(Icons.search),
+                hintText: 'Search by name',
+                suffixIcon: _searchCtrl.text.isEmpty
+                    ? null
+                    : IconButton(
+                        icon: const Icon(Icons.clear),
+                        onPressed: () {
+                          _searchCtrl.clear();
+                          _load();
+                        },
+                      ),
+              ),
             ),
           ),
           Expanded(
             child: workersState.loading
                 ? const Center(child: CircularProgressIndicator())
                 : workersState.workers.isEmpty
-                    ? EmptyState(
-                        emoji: '🔍',
-                        title: 'No workers found',
-                        subtitle: 'Try another category or check back soon.')
-                    : ListView.builder(
-                        padding: const EdgeInsets.all(KwSpacing.lg),
-                        itemCount: workersState.workers.length,
-                        itemBuilder: (context, i) => WorkerCard(
-                          worker: workersState.workers[i],
-                          onTap: () {}, // -> /worker/:id
+                ? EmptyState(
+                    emoji: '🔍',
+                    title: 'No workers found',
+                    subtitle: 'Try another category or check back soon.',
+                  )
+                : RefreshIndicator(
+                    onRefresh: () async => _load(name: _searchCtrl.text),
+                    child: ListView.builder(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.all(KwSpacing.lg),
+                      itemCount: workersState.workers.length,
+                      itemBuilder: (context, i) => WorkerCard(
+                        worker: workersState.workers[i],
+                        onTap: () => context.push(
+                          '/worker/${workersState.workers[i].id}',
                         ),
                       ),
+                    ),
+                  ),
           ),
         ],
       ),

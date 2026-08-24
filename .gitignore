@@ -8,3 +8,9 @@ opencode.json
 # misc
 Thumbs.db
 .DS_Store
+
+# release signing (never commit)
+kaamwala/android/key.properties
+*.jks
+*.keystore
+

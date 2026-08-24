@@ -1,6 +1,8 @@
 /// Auth repository - phone OTP via Supabase Auth (FR-AUTH-01..05).
 library;
 
+import 'dart:typed_data';
+
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:kaamwala/core/error/failure.dart';
@@ -91,12 +93,52 @@ class AuthRepository {
     }
   }
 
+  /// Uploads a compressed avatar to the PUBLIC profiles bucket under my own
+  /// folder (storage RLS: first path segment must be my uid), then persists
+  /// the public URL on users.photo_url.
+  Future<Result<UserProfile>> uploadAvatar(Uint8List bytes) async {
+    if (!SupabaseService.isReady) {
+      return Error(const ServerFailure('Backend not configured'));
+    }
+    final uid = SupabaseService.currentUserId;
+    if (uid == null) return const Error(AuthFailure());
+    try {
+      final path = '$uid/avatar_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      await SupabaseService.client.storage
+          .from('profiles')
+          .uploadBinary(
+            path,
+            bytes,
+            fileOptions: const FileOptions(upsert: true),
+          );
+      final publicUrl = SupabaseService.client.storage
+          .from('profiles')
+          .getPublicUrl(path);
+      final updated = await SupabaseService.client
+          .from('users')
+          .update({'photo_url': publicUrl})
+          .eq('id', uid)
+          .select()
+          .single();
+      return Success(UserProfile.fromMap(updated));
+    } catch (e) {
+      return Error(mapException(e));
+    }
+  }
+
   Future<UserProfile> _ensureProfile(String uid, String phone) async {
     final client = SupabaseService.client;
-    final existing = await client.from('users').select().eq('id', uid).maybeSingle();
+    final existing = await client
+        .from('users')
+        .select()
+        .eq('id', uid)
+        .maybeSingle();
     if (existing != null) return UserProfile.fromMap(existing);
-    final created =
-        await client.from('users').insert({'id': uid, 'phone': phone}).select().single();
+    final created = await client
+        .from('users')
+        .insert({'id': uid, 'phone': phone})
+        .select()
+        .single();
     return UserProfile.fromMap(created);
   }
 }

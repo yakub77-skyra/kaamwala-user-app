@@ -139,7 +139,7 @@ Deno.serve(async (req) => {
         .eq("id", booking.worker_id)
         .maybeSingle<{ user_id: string }>();
       if (wrow) {
-        await sendPushToUser(admn, wrow.user_id, "🔔 New job request!", "You have a new paid booking. Open the app to accept.");
+        await sendPushToUser(admn, wrow.user_id, "🔔 New job request!", "You have a new paid booking. Open the app to accept.", { kind: "new_job" });
       }
     }
   }

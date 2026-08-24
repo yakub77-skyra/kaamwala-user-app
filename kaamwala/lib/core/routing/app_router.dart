@@ -23,10 +23,14 @@ import 'package:kaamwala/features/worker/screens/job_requests_screen.dart';
 import 'package:kaamwala/features/worker/screens/worker_register_screen.dart';
 import 'package:kaamwala/features/worker/screens/worker_screens.dart';
 
+/// Global navigator key - lets FCM taps deep-link from outside widgets.
+final rootNavigatorKey = GlobalKey<NavigatorState>();
+
 final routerProvider = Provider<GoRouter>((ref) {
   final auth = ref.watch(authControllerProvider);
 
   return GoRouter(
+    navigatorKey: rootNavigatorKey,
     initialLocation: '/',
     debugLogDiagnostics: false,
     redirect: (context, state) {
@@ -42,27 +46,38 @@ final routerProvider = Provider<GoRouter>((ref) {
         case AppStage.roleSelection:
           return loc == '/role' ? null : '/role';
         case AppStage.clientApp:
-          if (loc == '/' || loc.startsWith('/login') || loc == '/role' || loc == '/onboarding' || loc.startsWith('/w/')) {
+          if (loc == '/' ||
+              loc.startsWith('/login') ||
+              loc == '/role' ||
+              loc == '/onboarding' ||
+              loc.startsWith('/w/')) {
             return '/home';
           }
           return null;
         case AppStage.workerApp:
-          if (loc == '/' || loc.startsWith('/login') || loc == '/role' || loc == '/onboarding' || !loc.startsWith('/w/')) {
+          if (loc == '/' ||
+              loc.startsWith('/login') ||
+              loc == '/role' ||
+              loc == '/onboarding' ||
+              !loc.startsWith('/w/')) {
             return '/w/home';
           }
           return null;
       }
     },
     routes: [
-      GoRoute(
-        path: '/',
-        builder: (context, state) => const SplashScreen(),
-      ),
+      GoRoute(path: '/', builder: (context, state) => const SplashScreen()),
       GoRoute(path: '/onboarding', builder: (_, _) => const OnboardingScreen()),
       GoRoute(path: '/login', builder: (_, _) => const LoginScreen()),
-      GoRoute(path: '/login/otp', builder: (_, s) => OtpScreen(phone: s.extra as String?)),
+      GoRoute(
+        path: '/login/otp',
+        builder: (_, s) => OtpScreen(phone: s.extra as String?),
+      ),
       GoRoute(path: '/role', builder: (_, _) => const RoleSelectionScreen()),
-      GoRoute(path: '/notifications', builder: (_, _) => const NotificationsScreen()),
+      GoRoute(
+        path: '/notifications',
+        builder: (_, _) => const NotificationsScreen(),
+      ),
 
       // CLIENT
       ShellRoute(
@@ -70,32 +85,80 @@ final routerProvider = Provider<GoRouter>((ref) {
         routes: [
           GoRoute(path: '/home', builder: (_, _) => const HomeScreen()),
           GoRoute(path: '/search', builder: (_, _) => const WorkerListScreen()),
-          GoRoute(path: '/bookings', builder: (_, _) => const MyBookingsScreen()),
+          GoRoute(
+            path: '/bookings',
+            builder: (_, _) => const MyBookingsScreen(),
+          ),
           GoRoute(path: '/profile', builder: (_, _) => const SettingsScreen()),
         ],
       ),
-      GoRoute(path: '/worker/:id', builder: (_, s) => WorkerProfileScreen(workerId: s.pathParameters['id']!)),
-      GoRoute(path: '/book/:workerId', builder: (_, s) => BookingScreen(workerId: s.pathParameters['workerId']!)),
-      GoRoute(path: '/payment/:bookingId', builder: (_, s) => PaymentScreen(bookingId: s.pathParameters['bookingId']!)),
-      GoRoute(path: '/booking/:id', builder: (_, s) => BookingDetailScreen(bookingId: s.pathParameters['id']!)),
-      GoRoute(path: '/chat/:bookingId', builder: (_, s) => ChatScreen(bookingId: s.pathParameters['bookingId']!)),
-      GoRoute(path: '/rate/:bookingId', builder: (_, s) => RateReviewScreen(bookingId: s.pathParameters['bookingId']!)),
+      GoRoute(
+        path: '/worker/:id',
+        builder: (_, s) =>
+            WorkerProfileScreen(workerId: s.pathParameters['id']!),
+      ),
+      GoRoute(
+        path: '/book/:workerId',
+        builder: (_, s) =>
+            BookingScreen(workerId: s.pathParameters['workerId']!),
+      ),
+      GoRoute(
+        path: '/payment/:bookingId',
+        builder: (_, s) =>
+            PaymentScreen(bookingId: s.pathParameters['bookingId']!),
+      ),
+      GoRoute(
+        path: '/booking/:id',
+        builder: (_, s) =>
+            BookingDetailScreen(bookingId: s.pathParameters['id']!),
+      ),
+      GoRoute(
+        path: '/chat/:bookingId',
+        builder: (_, s) =>
+            ChatScreen(bookingId: s.pathParameters['bookingId']!),
+      ),
+      GoRoute(
+        path: '/rate/:bookingId',
+        builder: (_, s) =>
+            RateReviewScreen(bookingId: s.pathParameters['bookingId']!),
+      ),
 
       // WORKER (/w/* requires worker role - guard enforced by redirect above)
       ShellRoute(
         builder: (context, state, child) => WorkerShell(child: child),
         routes: [
-          GoRoute(path: '/w/home', builder: (_, _) => const WorkerDashboardScreen()),
-          GoRoute(path: '/w/earnings', builder: (_, _) => const EarningsScreen()),
-          GoRoute(path: '/w/profile', builder: (_, _) => const SettingsScreen()),
+          GoRoute(
+            path: '/w/home',
+            builder: (_, _) => const WorkerDashboardScreen(),
+          ),
+          GoRoute(
+            path: '/w/earnings',
+            builder: (_, _) => const EarningsScreen(),
+          ),
+          GoRoute(
+            path: '/w/profile',
+            builder: (_, _) => const SettingsScreen(),
+          ),
         ],
       ),
-      GoRoute(path: '/w/register', builder: (_, _) => const WorkerRegisterScreen()),
+      GoRoute(
+        path: '/w/register',
+        builder: (_, _) => const WorkerRegisterScreen(),
+      ),
       GoRoute(path: '/w/review', builder: (_, _) => const UnderReviewScreen()),
       GoRoute(path: '/w/jobs', builder: (_, _) => const JobRequestsScreen()),
-      GoRoute(path: '/w/job/:id', builder: (_, s) => JobDetailScreen(jobId: s.pathParameters['id'])),
-      GoRoute(path: '/w/active/:id', builder: (_, s) => ActiveJobScreen(bookingId: s.pathParameters['id']!)),
-      GoRoute(path: '/w/payment-setup', builder: (_, _) => const PaymentSetupScreen()),
+      GoRoute(
+        path: '/w/job/:id',
+        builder: (_, s) => JobDetailScreen(jobId: s.pathParameters['id']),
+      ),
+      GoRoute(
+        path: '/w/active/:id',
+        builder: (_, s) => ActiveJobScreen(bookingId: s.pathParameters['id']!),
+      ),
+      GoRoute(
+        path: '/w/payment-setup',
+        builder: (_, _) => const PaymentSetupScreen(),
+      ),
     ],
   );
 });
@@ -129,7 +192,10 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
           children: const [
             Text('🔧', style: TextStyle(fontSize: 72)),
             SizedBox(height: 12),
-            Text('KaamWala', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800)),
+            Text(
+              'KaamWala',
+              style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800),
+            ),
             Text('"काम वाला"', style: TextStyle(color: Color(0xFF7A7A9D))),
             SizedBox(height: 24),
             CircularProgressIndicator(color: Color(0xFFFF6B35)),
@@ -159,15 +225,28 @@ class ClientShell extends StatelessWidget {
       body: child,
       bottomNavigationBar: NavigationBar(
         selectedIndex: _index(loc),
-        onDestinationSelected: (i) =>
-            context.go(['/', '/', '/', '/', '/'][i] == '/'
-                ? ['/home', '/search', '/bookings', '/profile'][i]
-                : '/home'),
+        onDestinationSelected: (i) => context.go(
+          ['/', '/', '/', '/', '/'][i] == '/'
+              ? ['/home', '/search', '/bookings', '/profile'][i]
+              : '/home',
+        ),
         destinations: const [
-          NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home), label: 'Home'),
+          NavigationDestination(
+            icon: Icon(Icons.home_outlined),
+            selectedIcon: Icon(Icons.home),
+            label: 'Home',
+          ),
           NavigationDestination(icon: Icon(Icons.search), label: 'Search'),
-          NavigationDestination(icon: Icon(Icons.list_alt_outlined), selectedIcon: Icon(Icons.list_alt), label: 'Bookings'),
-          NavigationDestination(icon: Icon(Icons.person_outline), selectedIcon: Icon(Icons.person), label: 'Profile'),
+          NavigationDestination(
+            icon: Icon(Icons.list_alt_outlined),
+            selectedIcon: Icon(Icons.list_alt),
+            label: 'Bookings',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.person_outline),
+            selectedIcon: Icon(Icons.person),
+            label: 'Profile',
+          ),
         ],
       ),
     );
@@ -196,8 +275,14 @@ class WorkerShell extends StatelessWidget {
             context.go(['/w/home', '/w/earnings', '/w/profile'][i]),
         destinations: const [
           NavigationDestination(icon: Icon(Icons.home_outlined), label: 'होम'),
-          NavigationDestination(icon: Icon(Icons.currency_rupee_outlined), label: 'कमाई'),
-          NavigationDestination(icon: Icon(Icons.person_outline), label: 'प्रोफ़ाइल'),
+          NavigationDestination(
+            icon: Icon(Icons.currency_rupee_outlined),
+            label: 'कमाई',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.person_outline),
+            label: 'प्रोफ़ाइल',
+          ),
         ],
       ),
     );

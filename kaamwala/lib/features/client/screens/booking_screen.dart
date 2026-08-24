@@ -49,12 +49,17 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
     if (_busy) return;
     if (_descCtrl.text.trim().length < 10) {
       ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please describe the work (min 10 chars)')));
+        const SnackBar(
+          content: Text('Please describe the work (min 10 chars)'),
+        ),
+      );
       return;
     }
     setState(() => _busy = true);
     // Demo estimates; production values come from server config.
-    final bookingResult = await ref.read(bookingsRepoProvider).create(
+    final bookingResult = await ref
+        .read(bookingsRepoProvider)
+        .create(
           clientId: '00000000-0000-0000-0000-000000000000',
           workerId: widget.workerId,
           category: ref.read(selectedCategoryProvider),
@@ -84,14 +89,18 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
         child: ListView(
           padding: const EdgeInsets.all(KwSpacing.lg),
           children: [
-            Text('What work do you need?',
-                style: Theme.of(context).textTheme.titleSmall),
+            Text(
+              'What work do you need?',
+              style: Theme.of(context).textTheme.titleSmall,
+            ),
             const SizedBox(height: KwSpacing.sm),
             TextFormField(
               controller: _descCtrl,
               maxLines: 4,
               maxLength: 500,
-              decoration: const InputDecoration(hintText: 'Fan is not working...'),
+              decoration: const InputDecoration(
+                hintText: 'Fan is not working...',
+              ),
             ),
             const SizedBox(height: KwSpacing.md),
             Text('When?', style: Theme.of(context).textTheme.titleSmall),
@@ -109,9 +118,14 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
                 Expanded(
                   child: DropdownButtonFormField<String>(
                     initialValue: _slot,
-                    items: [for (final s in _slots) DropdownMenuItem(value: s, child: Text(s))],
+                    items: [
+                      for (final s in _slots)
+                        DropdownMenuItem(value: s, child: Text(s)),
+                    ],
                     onChanged: (v) => setState(() => _slot = v ?? _slot),
-                    decoration: const InputDecoration(prefixIcon: Icon(Icons.schedule)),
+                    decoration: const InputDecoration(
+                      prefixIcon: Icon(Icons.schedule),
+                    ),
                   ),
                 ),
               ],
@@ -121,31 +135,46 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
             const SizedBox(height: KwSpacing.sm),
             TextFormField(
               controller: _addrCtrl,
-              decoration:
-                  const InputDecoration(suffixIcon: Icon(Icons.location_on_outlined)),
+              decoration: const InputDecoration(
+                suffixIcon: Icon(Icons.location_on_outlined),
+              ),
             ),
             const Divider(height: KwSpacing.xxl),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('Job estimate', style: Theme.of(context).textTheme.bodyMedium),
-                const Text('₹300 – ₹800',
-                    style: TextStyle(fontWeight: FontWeight.w700)),
+                Text(
+                  'Job estimate',
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+                const Text(
+                  '₹300 – ₹800',
+                  style: TextStyle(fontWeight: FontWeight.w700),
+                ),
               ],
             ),
             const SizedBox(height: KwSpacing.sm),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('Booking fee', style: Theme.of(context).textTheme.bodyMedium),
-                Text('₹${AppConstants.bookingFeeRupees}',
-                    style: const TextStyle(fontWeight: FontWeight.w700)),
+                Text(
+                  'Booking fee',
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+                Text(
+                  '₹${AppConstants.bookingFeeRupees}',
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
               ],
             ),
             const SizedBox(height: KwSpacing.lg),
             ElevatedButton.icon(
               icon: _busy
-                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
                   : const Icon(Icons.currency_rupee),
               label: Text('Pay ₹${AppConstants.bookingFeeRupees} & Book'),
               onPressed: _submit,

@@ -64,7 +64,8 @@ class Worker {
       area: (map['area'] ?? '') as String,
       bio: (map['bio'] ?? '') as String,
       skills: [
-        for (final s in (map['skills'] as List<dynamic>? ?? const [])) s as String,
+        for (final s in (map['skills'] as List<dynamic>? ?? const []))
+          s as String,
       ],
       priceMin: (map['price_min'] ?? 0) as num,
       priceMax: (map['price_max'] ?? 0) as num,

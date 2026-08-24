@@ -9,6 +9,7 @@ import 'package:kaamwala/features/auth/providers/auth_controller.dart';
 import 'package:kaamwala/features/client/repositories/bookings_repository.dart';
 import 'package:kaamwala/features/client/repositories/chat_repository.dart';
 import 'package:kaamwala/features/client/repositories/workers_repository.dart';
+import 'package:kaamwala/features/shared/providers/shared_providers.dart';
 import 'package:kaamwala/models/booking.dart';
 import 'package:kaamwala/models/worker.dart';
 import 'package:kaamwala/services/supabase_service.dart';
@@ -24,14 +25,16 @@ class WorkersState {
   final bool loading;
 }
 
-class WorkersController extends AutoDisposeFamilyNotifier<WorkersState, ServiceCategory> {
+class WorkersController
+    extends AutoDisposeFamilyNotifier<WorkersState, ServiceCategory> {
   @override
   WorkersState build(ServiceCategory arg) => const WorkersState();
 
-  Future<void> load({String? city}) async {
+  Future<void> load({String? city, String? name}) async {
     state = WorkersState(workers: state.workers, loading: true);
-    final result =
-        await ref.read(workersRepoProvider).search(category: arg, city: city);
+    final result = await ref
+        .read(workersRepoProvider)
+        .search(category: arg, city: city, name: name);
     state = switch (result) {
       Success(:final data) => WorkersState(workers: data),
       _ => const WorkersState(),
@@ -41,11 +44,36 @@ class WorkersController extends AutoDisposeFamilyNotifier<WorkersState, ServiceC
 
 final workersByCategoryProvider = NotifierProvider.autoDispose
     .family<WorkersController, WorkersState, ServiceCategory>(
-        WorkersController.new);
+      WorkersController.new,
+    );
+
+/// Home "Top rated near you" - live from workers table.
+final topRatedWorkersProvider = AutoDisposeFutureProvider<List<Worker>>((
+  ref,
+) async {
+  final profile = ref.watch(authControllerProvider).profile;
+  final result = await ref
+      .read(workersRepoProvider)
+      .topRated(city: (profile?.city ?? '').isEmpty ? null : profile!.city);
+  return switch (result) {
+    Success(:final data) => data,
+    Error() => const [],
+  };
+});
+
+/// Unread notification badge for the home bell.
+final unreadCountProvider = FutureProvider<int>((ref) async {
+  final res = await ref.watch(notificationsRepoProvider).unreadCount();
+  return switch (res) {
+    Success(:final data) => data,
+    Error() => 0,
+  };
+});
 
 /// Selected category on Home (C5 -> C6 navigation payload).
-final selectedCategoryProvider =
-    StateProvider<ServiceCategory>((_) => ServiceCategory.plumber);
+final selectedCategoryProvider = StateProvider<ServiceCategory>(
+  (_) => ServiceCategory.plumber,
+);
 
 class MyBookingsController extends AsyncNotifier<List<Booking>> {
   @override
@@ -68,4 +96,5 @@ class MyBookingsController extends AsyncNotifier<List<Booking>> {
 
 final myBookingsProvider =
     AsyncNotifierProvider<MyBookingsController, List<Booking>>(
-        MyBookingsController.new);
+      MyBookingsController.new,
+    );

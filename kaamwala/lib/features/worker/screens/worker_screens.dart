@@ -29,16 +29,22 @@ class UnderReviewScreen extends StatelessWidget {
             children: const [
               Text('⏳', style: TextStyle(fontSize: 72)),
               SizedBox(height: KwSpacing.lg),
-              Text('आपकी प्रोफ़ाइल जांच के अधीन है',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
+              Text(
+                'आपकी प्रोफ़ाइल जांच के अधीन है',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+              ),
               SizedBox(height: KwSpacing.sm),
-              Text('(Profile under review)',
-                  style: TextStyle(color: KwColors.muted)),
+              Text(
+                '(Profile under review)',
+                style: TextStyle(color: KwColors.muted),
+              ),
               SizedBox(height: KwSpacing.md),
-              Text('We verify your Aadhar within 24 hours.\n'
-                  'You\'ll get a message when approved. ✅',
-                  textAlign: TextAlign.center),
+              Text(
+                'We verify your Aadhar within 24 hours.\n'
+                'You\'ll get a message when approved. ✅',
+                textAlign: TextAlign.center,
+              ),
             ],
           ),
         ),
@@ -89,9 +95,15 @@ class _WorkerDashboardScreenState extends ConsumerState<WorkerDashboardScreen> {
     final firstName = name.split(' ').first;
 
     return Scaffold(
-      appBar: AppBar(title: Text(firstName.isEmpty ? 'नमस्ते 🙏' : 'नमस्ते, $firstName 🙏'), actions: [
-        IconButton(onPressed: () => context.go('/notifications'), icon: const Badge(child: Icon(Icons.notifications_outlined))),
-      ]),
+      appBar: AppBar(
+        title: Text(firstName.isEmpty ? 'नमस्ते 🙏' : 'नमस्ते, $firstName 🙏'),
+        actions: [
+          IconButton(
+            onPressed: () => context.go('/notifications'),
+            icon: const Badge(child: Icon(Icons.notifications_outlined)),
+          ),
+        ],
+      ),
       body: RefreshIndicator(
         onRefresh: _refreshAll,
         child: ListView(
@@ -99,7 +111,9 @@ class _WorkerDashboardScreenState extends ConsumerState<WorkerDashboardScreen> {
           physics: const AlwaysScrollableScrollPhysics(),
           children: [
             Card(
-              color: _available ? KwColors.green.withValues(alpha: .08) : KwColors.surface,
+              color: _available
+                  ? KwColors.green.withValues(alpha: .08)
+                  : KwColors.surface,
               margin: EdgeInsets.zero,
               child: SwitchListTile(
                 value: _available,
@@ -109,18 +123,17 @@ class _WorkerDashboardScreenState extends ConsumerState<WorkerDashboardScreen> {
                   ref.read(workerRepoProvider).setAvailability(v);
                 },
                 activeThumbColor: KwColors.green,
-                title: Text('काम के लिए उपलब्ध?',
-                    style: Theme.of(context)
-                        .textTheme
-                        .titleMedium
-                        ?.copyWith(fontWeight: FontWeight.w700)),
+                title: Text(
+                  'काम के लिए उपलब्ध?',
+                  style: Theme.of(context).textTheme.titleMedium
+                      ?.copyWith(fontWeight: FontWeight.w700),
+                ),
                 subtitle: const Text('Available for jobs'),
               ),
             ),
             if (active.isNotEmpty) ...[
               const SizedBox(height: KwSpacing.md),
-              for (final b in active)
-                _activeJobTile(context, b),
+              for (final b in active) _activeJobTile(context, b),
             ],
             const SizedBox(height: KwSpacing.md),
             Row(
@@ -130,12 +143,20 @@ class _WorkerDashboardScreenState extends ConsumerState<WorkerDashboardScreen> {
                     margin: EdgeInsets.zero,
                     child: Padding(
                       padding: const EdgeInsets.all(KwSpacing.lg),
-                      child: Column(children: [
-                        Text('आज के काम', style: Theme.of(context).textTheme.labelSmall),
-                        const SizedBox(height: 4),
-                        Text('${stats.activeCount}',
-                            style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w800)),
-                      ]),
+                      child: Column(
+                        children: [
+                          Text(
+                            'आज के काम',
+                            style: Theme.of(context).textTheme.labelSmall,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '${stats.activeCount}',
+                            style: Theme.of(context).textTheme.headlineMedium
+                                ?.copyWith(fontWeight: FontWeight.w800),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -145,12 +166,20 @@ class _WorkerDashboardScreenState extends ConsumerState<WorkerDashboardScreen> {
                     margin: EdgeInsets.zero,
                     child: Padding(
                       padding: const EdgeInsets.all(KwSpacing.lg),
-                      child: Column(children: [
-                        Text('आज की कमाई', style: Theme.of(context).textTheme.labelSmall),
-                        const SizedBox(height: 4),
-                        Text('₹${_money(stats.todayEarning)}',
-                            style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w800)),
-                      ]),
+                      child: Column(
+                        children: [
+                          Text(
+                            'आज की कमाई',
+                            style: Theme.of(context).textTheme.labelSmall,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '₹${_money(stats.todayEarning)}',
+                            style: Theme.of(context).textTheme.headlineMedium
+                                ?.copyWith(fontWeight: FontWeight.w800),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -160,11 +189,11 @@ class _WorkerDashboardScreenState extends ConsumerState<WorkerDashboardScreen> {
             Row(
               children: [
                 Expanded(
-                  child: Text('नए काम (${newJobs.length})',
-                      style: Theme.of(context)
-                          .textTheme
-                          .titleMedium
-                          ?.copyWith(fontWeight: FontWeight.w700)),
+                  child: Text(
+                    'नए काम (${newJobs.length})',
+                    style: Theme.of(context).textTheme.titleMedium
+                        ?.copyWith(fontWeight: FontWeight.w700),
+                  ),
                 ),
                 TextButton(
                   onPressed: () => context.go('/w/jobs'),
@@ -175,12 +204,12 @@ class _WorkerDashboardScreenState extends ConsumerState<WorkerDashboardScreen> {
             if (newJobs.isEmpty)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: KwSpacing.lg),
-                child: Text('अभी कोई नया काम नहीं है',
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context)
-                        .textTheme
-                        .bodySmall
-                        ?.copyWith(color: KwColors.muted)),
+                child: Text(
+                  'अभी कोई नया काम नहीं है',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.bodySmall
+                      ?.copyWith(color: KwColors.muted),
+                ),
               )
             else
               for (final b in newJobs.take(2)) _newJobCard(context, b),
@@ -197,8 +226,11 @@ class _WorkerDashboardScreenState extends ConsumerState<WorkerDashboardScreen> {
       child: ListTile(
         onTap: () => context.go('/w/active/${b.id}'),
         leading: Text(b.category.labelHi, style: const TextStyle(fontSize: 20)),
-        title: Text(b.description,
-            maxLines: 1, overflow: TextOverflow.ellipsis),
+        title: Text(
+          b.description,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
         subtitle: Text(b.status.label),
         trailing: const Icon(Icons.chevron_right),
       ),
@@ -213,19 +245,26 @@ class _WorkerDashboardScreenState extends ConsumerState<WorkerDashboardScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(children: [
-              Text(b.category.labelHi, style: const TextStyle(fontSize: 18)),
-              const SizedBox(width: KwSpacing.md),
-              Expanded(child: Text(b.description, maxLines: 1, overflow: TextOverflow.ellipsis, style: Theme.of(context).textTheme.titleMedium)),
-            ]),
+            Row(
+              children: [
+                Text(b.category.labelHi, style: const TextStyle(fontSize: 18)),
+                const SizedBox(width: KwSpacing.md),
+                Expanded(
+                  child: Text(
+                    b.description,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                ),
+              ],
+            ),
             const SizedBox(height: 4),
             Text(
               '${b.clientName.isEmpty ? 'Client' : b.clientName} • ${b.address.isEmpty ? b.ref : b.address} • ~₹${b.estimateMin}',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: Theme.of(context)
-                  .textTheme
-                  .bodySmall
+              style: Theme.of(context).textTheme.bodySmall
                   ?.copyWith(color: KwColors.muted),
             ),
             const SizedBox(height: KwSpacing.md),
@@ -233,7 +272,9 @@ class _WorkerDashboardScreenState extends ConsumerState<WorkerDashboardScreen> {
               children: [
                 Expanded(
                   child: OutlinedButton(
-                    style: OutlinedButton.styleFrom(foregroundColor: KwColors.red),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: KwColors.red,
+                    ),
                     onPressed: () =>
                         ref.read(workerJobsProvider.notifier).decline(b),
                     child: const Text('Decline'),
@@ -245,8 +286,9 @@ class _WorkerDashboardScreenState extends ConsumerState<WorkerDashboardScreen> {
                     icon: const Icon(Icons.check, size: 18),
                     label: const Text('✅ Accept'),
                     onPressed: () async {
-                      final ok =
-                          await ref.read(workerJobsProvider.notifier).accept(b);
+                      final ok = await ref
+                          .read(workerJobsProvider.notifier)
+                          .accept(b);
                       if (!ok || !context.mounted) return;
                       context.go('/w/active/${b.id}');
                     },
@@ -298,9 +340,13 @@ class JobDetailScreen extends ConsumerWidget {
                     children: [
                       Expanded(
                         child: OutlinedButton(
-                          style: OutlinedButton.styleFrom(foregroundColor: KwColors.red),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: KwColors.red,
+                          ),
                           onPressed: () async {
-                            await ref.read(workerJobsProvider.notifier).decline(b);
+                            await ref
+                                .read(workerJobsProvider.notifier)
+                                .decline(b);
                             if (!context.mounted) return;
                             Navigator.of(context).pop();
                           },
@@ -344,8 +390,13 @@ class JobDetailScreen extends ConsumerWidget {
               ),
               ListTile(
                 contentPadding: EdgeInsets.zero,
-                leading: Text(b.category.labelHi, style: const TextStyle(fontSize: 22)),
-                title: Text(b.description.isEmpty ? b.category.labelEn : b.description),
+                leading: Text(
+                  b.category.labelHi,
+                  style: const TextStyle(fontSize: 22),
+                ),
+                title: Text(
+                  b.description.isEmpty ? b.category.labelEn : b.description,
+                ),
               ),
               ListTile(
                 contentPadding: EdgeInsets.zero,
@@ -362,30 +413,36 @@ class JobDetailScreen extends ConsumerWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   const Text('Estimate'),
-                  Text('₹${b.estimateMin} – ₹${b.estimateMax}',
-                      style: const TextStyle(fontWeight: FontWeight.w700)),
+                  Text(
+                    '₹${b.estimateMin} – ₹${b.estimateMax}',
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
                 ],
               ),
               const SizedBox(height: KwSpacing.sm),
               Row(
                 children: [
-                  Text('You earn (${((1 - AppConstants.commissionRate) * 100).toStringAsFixed(0)}%)',
-                      style: Theme.of(context)
-                          .textTheme
-                          .bodyMedium
-                          ?.copyWith(fontWeight: FontWeight.w700)),
+                  Text(
+                    'You earn (${((1 - AppConstants.commissionRate) * 100).toStringAsFixed(0)}%)',
+                    style: Theme.of(context).textTheme.bodyMedium
+                        ?.copyWith(fontWeight: FontWeight.w700),
+                  ),
                   const Spacer(),
-                  Text('₹${_money(b.estimateMin * (1 - AppConstants.commissionRate))} – ₹${_money(b.estimateMax * (1 - AppConstants.commissionRate))}',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          color: KwColors.green, fontWeight: FontWeight.w800)),
+                  Text(
+                    '₹${_money(b.estimateMin * (1 - AppConstants.commissionRate))} – ₹${_money(b.estimateMax * (1 - AppConstants.commissionRate))}',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      color: KwColors.green,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
                 ],
               ),
               const SizedBox(height: KwSpacing.sm),
-              Text('Platform commission ${(AppConstants.commissionRate * 100).toStringAsFixed(0)}% — transparent.',
-                  style: Theme.of(context)
-                      .textTheme
-                      .labelSmall
-                      ?.copyWith(color: KwColors.muted)),
+              Text(
+                'Platform commission ${(AppConstants.commissionRate * 100).toStringAsFixed(0)}% — transparent.',
+                style: Theme.of(context).textTheme.labelSmall
+                    ?.copyWith(color: KwColors.muted),
+              ),
             ],
           );
         },
@@ -425,21 +482,19 @@ class _ActiveJobScreenState extends ConsumerState<ActiveJobScreen> {
   ];
 
   String _labelFor(BookingStatus next) => switch (next) {
-        BookingStatus.traveling => '🛵 Start Travel',
-        BookingStatus.arrived => '✅ I have Arrived',
-        BookingStatus.inProgress => '🔧 Start Work',
-        BookingStatus.completed => '🎉 Mark Completed',
-        _ => '',
-      };
+    BookingStatus.traveling => '🛵 Start Travel',
+    BookingStatus.arrived => '✅ I have Arrived',
+    BookingStatus.inProgress => '🔧 Start Work',
+    BookingStatus.completed => '🎉 Mark Completed',
+    _ => '',
+  };
 
   Future<void> _advance(Booking b, BookingStatus next) async {
     if (_busy) return;
     setState(() => _busy = true);
-    await ref.read(workerRepoProvider).updateStatus(
-          widget.bookingId,
-          next,
-          expectedFrom: b.status,
-        );
+    await ref
+        .read(workerRepoProvider)
+        .updateStatus(widget.bookingId, next, expectedFrom: b.status);
     await ref.read(activeJobsProvider.notifier).refresh();
     await ref.read(completedJobsProvider.notifier).refresh();
     if (!mounted) return;
@@ -465,8 +520,8 @@ class _ActiveJobScreenState extends ConsumerState<ActiveJobScreen> {
           final idx = _flow.indexOf(b.status);
           final isTerminal =
               b.status == BookingStatus.completed ||
-                  b.status == BookingStatus.cancelled ||
-                  b.status == BookingStatus.declined;
+              b.status == BookingStatus.cancelled ||
+              b.status == BookingStatus.declined;
           final next = !isTerminal && idx >= 0 && idx < _flow.length - 1
               ? _flow[idx + 1]
               : null;
@@ -475,7 +530,8 @@ class _ActiveJobScreenState extends ConsumerState<ActiveJobScreen> {
             children: [
               for (var i = 0; i < _flow.length; i++)
                 StatusRow(
-                  done: (idx >= 0 && i < idx) ||
+                  done:
+                      (idx >= 0 && i < idx) ||
                       b.status == BookingStatus.completed,
                   current: i == idx,
                   label: _flow[i].label,
@@ -487,7 +543,8 @@ class _ActiveJobScreenState extends ConsumerState<ActiveJobScreen> {
                       ? const SizedBox(
                           width: 18,
                           height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2))
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
                       : const Icon(Icons.arrow_forward),
                   label: Text(_labelFor(next)),
                   onPressed: _busy ? null : () => _advance(b, next),
@@ -499,9 +556,7 @@ class _ActiveJobScreenState extends ConsumerState<ActiveJobScreen> {
                         ? 'काम पूरा हुआ 🎉 Client confirmation unlocks your payout.'
                         : 'Job ${b.status.label.toLowerCase()}',
                     textAlign: TextAlign.center,
-                    style: Theme.of(context)
-                        .textTheme
-                        .bodyMedium
+                    style: Theme.of(context).textTheme.bodyMedium
                         ?.copyWith(color: KwColors.muted),
                   ),
                 ),
@@ -514,7 +569,12 @@ class _ActiveJobScreenState extends ConsumerState<ActiveJobScreen> {
 }
 
 class StatusRow extends StatelessWidget {
-  const StatusRow({super.key, required this.done, this.current = false, required this.label});
+  const StatusRow({
+    super.key,
+    required this.done,
+    this.current = false,
+    required this.label,
+  });
   final bool done;
   final bool current;
   final String label;
@@ -527,12 +587,15 @@ class StatusRow extends StatelessWidget {
       leading: done
           ? const Icon(Icons.check_circle, color: KwColors.green)
           : current
-              ? const Icon(Icons.radio_button_checked, color: KwColors.gold)
-              : const Icon(Icons.circle_outlined, color: KwColors.muted),
-      title: Text(label,
-          style: TextStyle(
-              fontWeight: current ? FontWeight.w700 : FontWeight.w400,
-              color: done || current ? KwColors.dark : KwColors.muted)),
+          ? const Icon(Icons.radio_button_checked, color: KwColors.gold)
+          : const Icon(Icons.circle_outlined, color: KwColors.muted),
+      title: Text(
+        label,
+        style: TextStyle(
+          fontWeight: current ? FontWeight.w700 : FontWeight.w400,
+          color: done || current ? KwColors.dark : KwColors.muted,
+        ),
+      ),
     );
   }
 }
@@ -570,14 +633,16 @@ class EarningsScreen extends ConsumerWidget {
                   padding: const EdgeInsets.all(KwSpacing.xl),
                   child: Column(
                     children: [
-                      Text('इस महीने (This Month)',
-                          style: Theme.of(context).textTheme.labelLarge),
+                      Text(
+                        'इस महीने (This Month)',
+                        style: Theme.of(context).textTheme.labelLarge,
+                      ),
                       const SizedBox(height: KwSpacing.sm),
-                      Text('₹${_money(month)}',
-                          style: Theme.of(context)
-                              .textTheme
-                              .displaySmall
-                              ?.copyWith(fontWeight: FontWeight.w800)),
+                      Text(
+                        '₹${_money(month)}',
+                        style: Theme.of(context).textTheme.displaySmall
+                            ?.copyWith(fontWeight: FontWeight.w800),
+                      ),
                       const SizedBox(height: KwSpacing.sm),
                       Text('This Week ₹${_money(week)}'),
                     ],
@@ -585,36 +650,42 @@ class EarningsScreen extends ConsumerWidget {
                 ),
               ),
               const SizedBox(height: KwSpacing.lg),
-              Text('HISTORY',
-                  style: Theme.of(context)
-                      .textTheme
-                      .labelMedium
-                      ?.copyWith(color: KwColors.muted, letterSpacing: 1)),
+              Text(
+                'HISTORY',
+                style: Theme.of(context).textTheme.labelMedium
+                    ?.copyWith(color: KwColors.muted, letterSpacing: 1),
+              ),
               if (list.isEmpty)
                 const Padding(
                   padding: EdgeInsets.all(KwSpacing.xl),
                   child: EmptyState(
-                      emoji: '💼',
-                      title: 'No completed jobs yet',
-                      subtitle: 'Finish a job and it shows up here.'),
+                    emoji: '💼',
+                    title: 'No completed jobs yet',
+                    subtitle: 'Finish a job and it shows up here.',
+                  ),
                 )
               else
                 for (final b in list)
                   ListTile(
-                    leading: Text(b.category.labelHi,
-                        style: const TextStyle(fontSize: 20)),
-                    title: Text(b.description.isEmpty
-                        ? b.category.labelEn
-                        : b.description),
-                    subtitle: Text(b.status == BookingStatus.completed && b.clientConfirmed
-                        ? 'Paid'
-                        : 'Awaiting client confirmation'),
+                    leading: Text(
+                      b.category.labelHi,
+                      style: const TextStyle(fontSize: 20),
+                    ),
+                    title: Text(
+                      b.description.isEmpty
+                          ? b.category.labelEn
+                          : b.description,
+                    ),
+                    subtitle: Text(
+                      b.status == BookingStatus.completed && b.clientConfirmed
+                          ? 'Paid'
+                          : 'Awaiting client confirmation',
+                    ),
                     trailing: Text(
-                        '+₹${_money(b.workerEarning)} ${b.clientConfirmed ? '✅' : '🟡'}',
-                        style: Theme.of(context)
-                            .textTheme
-                            .titleSmall
-                            ?.copyWith(color: KwColors.green)),
+                      '+₹${_money(b.workerEarning)} ${b.clientConfirmed ? '✅' : '🟡'}',
+                      style: Theme.of(context).textTheme.titleSmall
+                          ?.copyWith(color: KwColors.green),
+                    ),
                   ),
               const SizedBox(height: KwSpacing.md),
               OutlinedButton.icon(
@@ -648,7 +719,8 @@ class _PaymentSetupScreenState extends State<PaymentSetupScreen> {
       RegExp(r'^[a-zA-Z0-9._-]+@[a-zA-Z]{2,}$').hasMatch(_upiCtrl.text.trim());
   bool get _bankValid =>
       _accCtrl.text.trim().length >= 9 &&
-      RegExp(r'^[A-Z]{4}0[A-Z0-9]{6}$').hasMatch(_ifscCtrl.text.trim().toUpperCase()) &&
+      RegExp(r'^[A-Z]{4}0[A-Z0-9]{6}$')
+          .hasMatch(_ifscCtrl.text.trim().toUpperCase()) &&
       _holderCtrl.text.trim().isNotEmpty;
 
   @override
@@ -689,7 +761,12 @@ class _PaymentSetupScreenState extends State<PaymentSetupScreen> {
       body: ListView(
         padding: const EdgeInsets.all(KwSpacing.xl),
         children: [
-          const Center(child: Text('Money will come here 👇', style: TextStyle(fontSize: 16))),
+          const Center(
+            child: Text(
+              'Money will come here 👇',
+              style: TextStyle(fontSize: 16),
+            ),
+          ),
           const SizedBox(height: KwSpacing.lg),
           SegmentedButton<bool>(
             segments: const [
@@ -711,8 +788,9 @@ class _PaymentSetupScreenState extends State<PaymentSetupScreen> {
               Text(
                 _upiValid ? '✅ UPI ID looks valid' : '❌ Invalid UPI ID format',
                 style: TextStyle(
-                    color: _upiValid ? KwColors.green : KwColors.red,
-                    fontSize: 12),
+                  color: _upiValid ? KwColors.green : KwColors.red,
+                  fontSize: 12,
+                ),
               ),
           ] else ...[
             TextField(
@@ -726,7 +804,9 @@ class _PaymentSetupScreenState extends State<PaymentSetupScreen> {
               controller: _ifscCtrl,
               onChanged: (_) => setState(() {}),
               textCapitalization: TextCapitalization.characters,
-              decoration: InputDecoration(hintText: 'IFSC Code (e.g. SBIN0001234)'),
+              decoration: InputDecoration(
+                hintText: 'IFSC Code (e.g. SBIN0001234)',
+              ),
             ),
             const SizedBox(height: KwSpacing.md),
             TextField(
@@ -738,10 +818,13 @@ class _PaymentSetupScreenState extends State<PaymentSetupScreen> {
             if (_accCtrl.text.isNotEmpty || _ifscCtrl.text.isNotEmpty) ...[
               const SizedBox(height: KwSpacing.sm),
               Text(
-                _bankValid ? '✅ Details look valid' : '❌ Check account number / IFSC / name',
+                _bankValid
+                    ? '✅ Details look valid'
+                    : '❌ Check account number / IFSC / name',
                 style: TextStyle(
-                    color: _bankValid ? KwColors.green : KwColors.red,
-                    fontSize: 12),
+                  color: _bankValid ? KwColors.green : KwColors.red,
+                  fontSize: 12,
+                ),
               ),
             ],
           ],

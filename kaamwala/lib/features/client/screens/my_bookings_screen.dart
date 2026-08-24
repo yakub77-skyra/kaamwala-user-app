@@ -21,15 +21,19 @@ class MyBookingsScreen extends ConsumerWidget {
       body: bookings.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => const EmptyState(
-            emoji: '⚠️', title: 'Could not load bookings', subtitle: 'Pull to retry.'),
+          emoji: '⚠️',
+          title: 'Could not load bookings',
+          subtitle: 'Pull to retry.',
+        ),
         data: (list) => list.isEmpty
             ? const EmptyState(
                 emoji: '📋',
                 title: 'No bookings yet',
-                subtitle: 'Find a worker and book in 3 taps.')
+                subtitle: 'Find a worker and book in 3 taps.',
+              )
             : RefreshIndicator(
-                onRefresh:
-                    () => ref.read(myBookingsProvider.notifier).refresh(),
+                onRefresh: () =>
+                    ref.read(myBookingsProvider.notifier).refresh(),
                 child: ListView.builder(
                   padding: const EdgeInsets.all(KwSpacing.lg),
                   itemCount: list.length,
@@ -46,28 +50,40 @@ class MyBookingsScreen extends ConsumerWidget {
                               children: [
                                 Expanded(
                                   child: Text(
-                                    b.clientName.isEmpty ? b.ref : '${b.category.labelEn} • ${b.ref}',
-                                    style: Theme.of(context).textTheme.titleMedium,
+                                    b.clientName.isEmpty
+                                        ? b.ref
+                                        : '${b.category.labelEn} • ${b.ref}',
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .titleMedium,
                                   ),
                                 ),
-                                Text(b.status.emoji, style: const TextStyle(fontSize: 18)),
+                                Text(
+                                  b.status.emoji,
+                                  style: const TextStyle(fontSize: 18),
+                                ),
                               ],
                             ),
                             const SizedBox(height: KwSpacing.sm),
-                            Text('${b.status.emoji} ${b.status.label}',
-                                style: TextStyle(
-                                    color: switch (b.status) {
-                                      BookingStatus.completed => KwColors.green,
-                                      BookingStatus.cancelled ||
-                                      BookingStatus.declined =>
-                                        KwColors.red,
-                                      _ => KwColors.gold,
-                                    })),
+                            Text(
+                              '${b.status.emoji} ${b.status.label}',
+                              style: TextStyle(
+                                color: switch (b.status) {
+                                  BookingStatus.completed => KwColors.green,
+                                  BookingStatus.cancelled ||
+                                  BookingStatus.declined => KwColors.red,
+                                  _ => KwColors.gold,
+                                },
+                              ),
+                            ),
                             const SizedBox(height: KwSpacing.md),
                             Row(
                               children: [
                                 OutlinedButton.icon(
-                                  icon: const Icon(Icons.chat_bubble_outline, size: 18),
+                                  icon: const Icon(
+                                    Icons.chat_bubble_outline,
+                                    size: 18,
+                                  ),
                                   label: const Text('Chat'),
                                   onPressed: () => context.go('/chat/${b.id}'),
                                 ),
@@ -75,7 +91,8 @@ class MyBookingsScreen extends ConsumerWidget {
                                 FilledButton.icon(
                                   icon: const Icon(Icons.visibility, size: 18),
                                   label: const Text('Track'),
-                                  onPressed: () => context.go('/booking/${b.id}'),
+                                  onPressed: () =>
+                                      context.go('/booking/${b.id}'),
                                 ),
                               ],
                             ),
@@ -100,7 +117,9 @@ class BookingDetailScreen extends ConsumerWidget {
     final bookings = ref.watch(myBookingsProvider);
     final booking = bookings.value?.where((b) => b.id == bookingId).firstOrNull;
     return Scaffold(
-      appBar: AppBar(title: Text('#${booking?.ref ?? bookingId.substring(0, 8)}')),
+      appBar: AppBar(
+        title: Text('#${booking?.ref ?? bookingId.substring(0, 8)}'),
+      ),
       body: ListView(
         padding: const EdgeInsets.all(KwSpacing.lg),
         children: [
@@ -111,14 +130,17 @@ class BookingDetailScreen extends ConsumerWidget {
               children: [
                 CircleAvatar(child: const Icon(Icons.person)),
                 const SizedBox(width: KwSpacing.lg),
-                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('Worker'),
-                  Text('⭐ rated professional',
-                      style: Theme.of(context)
-                          .textTheme
-                          .labelSmall
-                          ?.copyWith(color: KwColors.muted)),
-                ]),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Worker'),
+                    Text(
+                      '⭐ rated professional',
+                      style: Theme.of(context).textTheme.labelSmall
+                          ?.copyWith(color: KwColors.muted),
+                    ),
+                  ],
+                ),
               ],
             ),
             const Divider(height: KwSpacing.xxl),
