@@ -11,6 +11,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 import 'package:kaamwala/core/theme/app_theme.dart';
+import 'package:kaamwala/features/admin/providers/admin_provider.dart';
 import 'package:kaamwala/features/auth/providers/auth_controller.dart';
 import 'package:kaamwala/features/shared/providers/shared_providers.dart';
 import 'package:kaamwala/features/shared/widgets/common_widgets.dart';
@@ -221,6 +222,21 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             leading: const Icon(Icons.description_outlined),
             title: const Text('📄 Privacy Policy'),
             onTap: _showPrivacyPolicy,
+          ),
+          Consumer(
+            builder: (context, ref, _) {
+              final isAdmin = ref.watch(isAdminProvider).value ?? false;
+              if (!isAdmin) return const SizedBox.shrink();
+              return ListTile(
+                leading: const Icon(Icons.admin_panel_settings_outlined),
+                title: const Text('🛡️ Verification Queue'),
+                subtitle: const Text('Admin: approve worker profiles'),
+                onTap: () async {
+                  await context.push('/admin');
+                  ref.invalidate(isAdminProvider);
+                },
+              );
+            },
           ),
           ListTile(
             leading: const Icon(Icons.support_agent_outlined),

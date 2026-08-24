@@ -23,6 +23,8 @@ class Booking {
     this.workerEarning = 0,
     this.clientConfirmed = false,
     this.clientName = '',
+    this.workerName = '',
+    this.workerPhoto,
     this.createdAt,
   });
 
@@ -54,10 +56,16 @@ class Booking {
   final String clientName;
   final DateTime? createdAt;
 
+  /// Counterpart identity via workers(id, users(...)) embed.
+  final String workerName;
+  final String? workerPhoto;
+
   bool get canCancel => status == BookingStatus.pending;
 
   factory Booking.fromMap(Map<String, dynamic> map) {
     final client = map['users'];
+    final workerMap = map['workers'] as Map?;
+    final workerUser = workerMap?['users'] as Map?;
     return Booking(
       id: map['id'] as String,
       ref: (map['ref'] ?? '') as String,
@@ -78,6 +86,12 @@ class Booking {
       workerEarning: (map['worker_earning'] ?? 0) as num,
       clientConfirmed: (map['client_confirmed'] ?? false) as bool,
       clientName: client is Map ? ((client['name'] ?? '') as String) : '',
+      workerName: workerUser is Map
+          ? ((workerUser['name'] ?? '') as String)
+          : '',
+      workerPhoto: workerUser is Map
+          ? workerUser['photo_url'] as String?
+          : null,
       createdAt: DateTime.tryParse((map['created_at'] ?? '') as String),
     );
   }

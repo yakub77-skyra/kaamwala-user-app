@@ -1,6 +1,7 @@
 /// My Bookings list + Booking detail/track (Phase 3 C10).
 library;
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -128,16 +129,28 @@ class BookingDetailScreen extends ConsumerWidget {
           else ...[
             Row(
               children: [
-                CircleAvatar(child: const Icon(Icons.person)),
+                CircleAvatar(
+                  radius: 24,
+                  backgroundImage: (booking.workerPhoto?.isNotEmpty ?? false)
+                      ? CachedNetworkImageProvider(booking.workerPhoto!)
+                      : null,
+                  child: (booking.workerPhoto?.isNotEmpty ?? false)
+                      ? null
+                      : const Icon(Icons.person),
+                ),
                 const SizedBox(width: KwSpacing.lg),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Worker'),
                     Text(
-                      '⭐ rated professional',
+                      booking.workerName.isEmpty
+                          ? 'Worker'
+                          : booking.workerName,
+                    ),
+                    Text(
+                      '✅ Verified professional',
                       style: Theme.of(context).textTheme.labelSmall
-                          ?.copyWith(color: KwColors.muted),
+                          ?.copyWith(color: KwColors.green),
                     ),
                   ],
                 ),

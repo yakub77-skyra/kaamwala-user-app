@@ -128,7 +128,7 @@ class BookingsRepository {
     try {
       final rows = await SupabaseService.client
           .from('bookings')
-          .select('*, workers(id, users(name))')
+          .select('*, workers(id, users(name, photo_url))')
           .eq('client_id', clientId)
           .order('created_at', ascending: false)
           .limit(50);

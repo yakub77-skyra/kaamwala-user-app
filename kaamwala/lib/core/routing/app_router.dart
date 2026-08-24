@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:kaamwala/features/admin/screens/admin_queue_screen.dart';
 import 'package:kaamwala/features/auth/providers/auth_controller.dart';
 import 'package:kaamwala/features/auth/screens/login_screen.dart';
 import 'package:kaamwala/features/auth/screens/onboarding_screen.dart';
@@ -78,6 +79,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/notifications',
         builder: (_, _) => const NotificationsScreen(),
       ),
+      GoRoute(path: '/admin', builder: (_, _) => const AdminQueueScreen()),
 
       // CLIENT
       ShellRoute(
