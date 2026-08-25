@@ -163,6 +163,9 @@ Deno.serve(async (req) => {
       .maybeSingle<{ id: string; client_id: string; status: string; ref: string }>();
     if (!booking) return fail("Booking not found", 404);
     if (booking.client_id !== uid) return fail("Not your booking", 403);
+    // Phase 3 hardening: refunds are only valid after a cancellation, so a
+    // stray client call can't claw back the fee while the booking stays live.
+    if (booking.status !== "cancelled") return fail("Booking is not cancelled", 409);
 
     const { data: order } = await admn
       .from("orders")

@@ -8,6 +8,7 @@
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { fail, json, corsHeaders } from "./_shared/http.ts";
 import { sendPushToUser, pushConfigured } from "./_shared/push.ts";
+import { callerUid } from "./_shared/db.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -18,6 +19,21 @@ Deno.serve(async (req) => {
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     { auth: { persistSession: false, autoRefreshToken: false } },
   );
+
+  // Admin-only gate (Phase 3 hardening): this endpoint can push arbitrary
+  // text to any user - never callable by ordinary authenticated users.
+  // Internal flows (triggers/other functions) use _shared/push.ts directly.
+  const uid = await callerUid(req);
+  let isAdmin = false;
+  if (uid) {
+    const { data: cfg } = await admin
+      .from("platform_config")
+      .select("value")
+      .eq("key", "admin_user_ids")
+      .maybeSingle<{ value: string[] }>();
+    isAdmin = !!uid && ((cfg?.value as string[] | null) ?? []).includes(uid);
+  }
+  if (!isAdmin) return fail("Forbidden", 403);
 
   const body = await req.json().catch(() => ({}) as Record<string, unknown>);
   let userId = body.user_id as string | undefined;
