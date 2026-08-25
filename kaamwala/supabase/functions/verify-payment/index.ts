@@ -51,13 +51,15 @@ Deno.serve(async (req) => {
       if (!valid) return fail("Invalid signature", 401);
 
       const event = JSON.parse(rawBody) as {
+        event?: string; // real Razorpay payloads use top-level "event"
         type?: string;
         payload?: { payment?: { entity?: WebhookPayment }; refund?: { entity?: { id?: string; payment_id?: string } } };
       };
+      const eventType = event.event ?? event.type ?? "";
       const payment = event.payload?.payment?.entity;
       const refund = event.payload?.refund?.entity;
 
-      switch (event.type) {
+      switch (eventType) {
         case "payment.captured":
         case "payment.authorized": {
           await markOrderPaid(admin, payment?.order_id, payment?.id ?? null);
@@ -90,8 +92,11 @@ Deno.serve(async (req) => {
     }
 
     // ---------- Mode 2: authenticated refund ----------
-    if (event2IsRefund(JSON.parse(rawBody || "{}"))) {
-      return await handleRefundRequest(req, admin);
+    // rawBody is already consumed above; parse once and pass it down
+    // (re-reading req.text() throws "Body already consumed").
+    const parsedBody = JSON.parse(rawBody || "{}") as Record<string, unknown>;
+    if (event2IsRefund(parsedBody)) {
+      return await handleRefundRequest(admin, parsedBody as { booking_id: string });
     }
     return fail("Unsupported request");
   } catch (e) {
@@ -145,13 +150,11 @@ Deno.serve(async (req) => {
   }
 
   async function handleRefundRequest(
-    req2: Request,
     admn: ReturnType<typeof serviceClient>,
+    body: { booking_id: string },
   ): Promise<Response> {
-    const uid = await callerUid(req2);
+    const uid = await callerUid(req);
     if (!uid) return fail("Unauthorized", 401);
-
-    const body = JSON.parse(await req2.text()) as { booking_id: string };
 
     const { data: booking } = await admn
       .from("bookings")
