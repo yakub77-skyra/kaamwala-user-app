@@ -14,3 +14,5 @@ kaamwala/android/key.properties
 *.jks
 *.keystore
 
+
+.kotlin/

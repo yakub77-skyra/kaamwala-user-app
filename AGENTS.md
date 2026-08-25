@@ -57,11 +57,12 @@ App runs with env from `.env`: `flutter run --dart-define-from-file=../.env` —
 - Worker approval gate: workers.approval_status='pending' until admin approves via `approve-worker` edge fn (admin list in `platform_config.admin_user_ids`)
 
 ## Pending checklist (next work items)
-1. **User:** register webhook in Razorpay Dashboard (URL `https://ukjaypykfqauvkctgzir.supabase.co/functions/v1/verify-payment`, secret = value in `.env`, events payment.captured/failed/refund.processed)
-2. **User:** configure SMS provider in Supabase Auth → Phone (needed for OTP login)
-3. **First login** → put user's uid into `platform_config.admin_user_ids` (SQL update)
-4. Live end-to-end test on device: OTP → book worker → pay ₹20 (test keys) → worker accepts → complete → confirm → payout path
-5. Optional later: Cloudflare proxy wiring (`Env.apiOrigin` exists but unused), Crashlytics, Play Store release pipeline, i18n toggle actually switching strings
+1. ~~Register webhook in Razorpay Dashboard~~ DONE - programmatically verified active (`rzp_test` account): URL `https://ukjaypykfqauvkctgzir.supabase.co/functions/v1/verify-payment`, includes payment.captured/failed/refund.processed (+ many harmless extra events); HMAC secret matches RZP_WEBHOOK_SECRET (proven by live forged=401/valid=pass tests)
+2. **User:** SMS provider setup for OTP login. RECOMMENDATION: MSG91 (~₹0.15-0.25/OTP India; Twilio ≈ ₹1.50+/SMS = 3-10x pricier; Firebase Phone $0.07/SMS India = worst). Steps: (a) sign up msg91.com + profile KYC; (b) DLT entity registration on a telecom DLT portal (Jio Trueconnect/Vilpower/Airtel), register Header sender-ID (6 chars e.g. KMWALA) + OTP template whose text EXACTLY matches the Supabase Auth SMS message template (settable in Dashboard > Auth > Templates/SMS); (c) give me the MSG91 Auth Key + Sender ID + approved Template ID and I wire it into Supabase Auth (custom SMS hook -> edge function calling MSG91 transactional SMS with Supabase-generated code); (d) test OTP delivery to a real Indian number. DLT approval lead time 24-72h - start NOW
+3. ~~First login -> platform_config.admin_user_ids~~ DONE - already set (verified in Phase 3)
+4. Live end-to-end test ON DEVICE: blocked on item 2 (OTP). Once SMS works: install release APK (--dart-define-from-file=../.env), walk OTP -> book -> pay ₹20 test -> worker accept -> complete -> confirm; ALSO covers deferred release-build smoke (R8/proguard runtime check). Release build command: `flutter build apk --release --target-platform android-arm64 --dart-define-from-file=../.env` (arm64-only = ~1/3 build time; full multi-ABI/aab at store submission)
+5. E2E harness now lives at `kaamwala/tools/kw_e2e.ps1` (was temp dir); run `powershell -ExecutionPolicy Bypass -File tools\kw_e2e.ps1` - self-contained, creates+cleans its own users, 33/33 PASS 2026-08-25 post-hardening
+6. Optional later: Cloudflare proxy wiring (`Env.apiOrigin` exists but unused), Play Store release pipeline (Phase 5), i18n proper hi/en (post-v1 backlog)
 
 ## Gotchas learned the hard way
 - PowerShell 5.1: `ConvertTo-Json` turns raw JSON strings into nested objects — wrap values with `($raw | ConvertTo-Json -Compress)` to force string literals
