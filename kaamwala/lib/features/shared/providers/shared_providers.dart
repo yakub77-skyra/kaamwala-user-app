@@ -67,20 +67,14 @@ final notificationsProvider =
 
 /// Local-only UI preferences (persisted on device).
 class PrefsState {
-  const PrefsState({
-    this.loaded = false,
-    this.notificationsOn = true,
-    this.language = 'en',
-  });
+  const PrefsState({this.loaded = false, this.notificationsOn = true});
 
   final bool loaded;
   final bool notificationsOn;
-  final String language; // 'en' | 'hi'
 }
 
 class PrefsController extends Notifier<PrefsState> {
   static const _kNotif = 'settings.notifications_on';
-  static const _kLang = 'settings.language';
 
   @override
   PrefsState build() {
@@ -94,7 +88,6 @@ class PrefsController extends Notifier<PrefsState> {
       state = PrefsState(
         loaded: true,
         notificationsOn: sp.getBool(_kNotif) ?? true,
-        language: sp.getString(_kLang) ?? 'en',
       );
     } catch (_) {
       state = const PrefsState(loaded: true);
@@ -102,26 +95,10 @@ class PrefsController extends Notifier<PrefsState> {
   }
 
   Future<void> setNotificationsOn(bool v) async {
-    state = PrefsState(
-      loaded: true,
-      notificationsOn: v,
-      language: state.language,
-    );
+    state = PrefsState(loaded: true, notificationsOn: v);
     try {
       final sp = await SharedPreferences.getInstance();
       await sp.setBool(_kNotif, v);
-    } catch (_) {}
-  }
-
-  Future<void> setLanguage(String v) async {
-    state = PrefsState(
-      loaded: true,
-      notificationsOn: state.notificationsOn,
-      language: v,
-    );
-    try {
-      final sp = await SharedPreferences.getInstance();
-      await sp.setString(_kLang, v);
     } catch (_) {}
   }
 }

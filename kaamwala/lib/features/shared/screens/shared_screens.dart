@@ -369,20 +369,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             child: Column(
               children: [
                 ListTile(
-                  leading: const Icon(Icons.language_rounded),
-                  title: const Text('Language'),
-                  trailing: SegmentedButton<String>(
-                    segments: const [
-                      ButtonSegment(value: 'hi', label: Text('हिंदी')),
-                      ButtonSegment(value: 'en', label: Text('English')),
-                    ],
-                    selected: {prefs.language},
-                    onSelectionChanged: (v) =>
-                        ref.read(prefsProvider.notifier).setLanguage(v.first),
-                    showSelectedIcon: false,
-                  ),
-                ),
-                ListTile(
                   leading: const Icon(Icons.notifications_active_outlined),
                   title: const Text('Notifications'),
                   trailing: Switch(

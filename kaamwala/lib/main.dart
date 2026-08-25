@@ -1,10 +1,12 @@
 import 'dart:async';
 
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:kaamwala/core/env/env.dart';
 import 'package:kaamwala/core/routing/app_router.dart';
 import 'package:kaamwala/core/theme/app_theme.dart';
 import 'package:kaamwala/features/auth/providers/auth_controller.dart';
@@ -13,8 +15,51 @@ import 'package:kaamwala/services/supabase_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Release builds must never silently fall back to demo mode - fail loudly.
+  if (kReleaseMode && !Env.isConfigured) {
+    runApp(const _MisconfiguredApp());
+    return;
+  }
   await SupabaseService.init();
   runApp(const ProviderScope(child: KaamWalaApp()));
+}
+
+/// Shown instead of the app when a release build ships without KW_* env vars,
+/// so a misconfigured build is obvious instead of quietly running demo data.
+class _MisconfiguredApp extends StatelessWidget {
+  const _MisconfiguredApp();
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: Scaffold(
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.error_outline, size: 48),
+                const SizedBox(height: 16),
+                Text(
+                  'Build configuration error',
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'This build was compiled without backend configuration '
+                  '(KW_SUPABASE_URL / KW_SUPABASE_ANON_KEY missing). '
+                  'Please rebuild with --dart-define-from-file=.env.',
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class KaamWalaApp extends ConsumerStatefulWidget {

@@ -66,24 +66,7 @@ class WorkersRepository {
 
   Future<Result<Worker>> byId(String id) async {
     if (!SupabaseService.isReady) {
-      return Success(
-        Worker(
-          id: id,
-          userId: 'demo-user',
-          category: ServiceCategory.electrician,
-          name: 'Ramesh Kumar',
-          area: 'Kharadi',
-          city: 'Pune',
-          bio: '10 yrs experience. Fan, wiring, MCB, inverter installation.',
-          skills: const ['Wiring', 'Fans', 'MCB', 'Inverter'],
-          priceMin: 300,
-          priceMax: 800,
-          ratingAvg: 4.8,
-          ratingCount: 120,
-          isAvailable: true,
-          approvalStatus: ApprovalStatus.approved,
-        ),
-      );
+      return const Error(ServerFailure('Backend not configured'));
     }
     try {
       final row = await SupabaseService.client

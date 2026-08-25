@@ -35,7 +35,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   @override
   void initState() {
     super.initState();
-    _myId = SupabaseService.currentUserId ?? 'demo-client';
+    // Null in unconfigured dev builds - send/markRead stay disabled.
+    _myId = SupabaseService.currentUserId;
     _load();
     _loadTitle();
     _channel = ref.read(chatRepoProvider).subscribe(widget.bookingId, _load);
@@ -60,11 +61,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       }
     });
     // Read receipts: everything from the counterpart is now seen (FR-CHAT-03).
-    unawaited(
-      ref
-          .read(chatRepoProvider)
-          .markRead(bookingId: widget.bookingId, readerId: _myId!),
-    );
+    final myId = _myId;
+    if (myId != null) {
+      unawaited(
+        ref
+            .read(chatRepoProvider)
+            .markRead(bookingId: widget.bookingId, readerId: myId),
+      );
+    }
     if (_scroll.hasClients) {
       await Future<void>.delayed(const Duration(milliseconds: 50));
       if (_scroll.hasClients && mounted) {
@@ -75,12 +79,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   Future<void> _send() async {
     final text = _ctrl.text.trim();
-    if (text.isEmpty || _sending) return;
+    final myId = _myId;
+    if (text.isEmpty || _sending || myId == null) return;
     setState(() => _sending = true);
     _ctrl.clear();
     await ref
         .read(chatRepoProvider)
-        .send(bookingId: widget.bookingId, senderId: _myId!, content: text);
+        .send(bookingId: widget.bookingId, senderId: myId, content: text);
     if (!mounted) return;
     setState(() => _sending = false);
     await _load();

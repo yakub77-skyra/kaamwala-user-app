@@ -28,21 +28,7 @@ class BookingsRepository {
     required num estimateMax,
   }) async {
     if (!SupabaseService.isReady) {
-      return Success(
-        Booking(
-          id: 'demo-booking',
-          ref: 'KW-2026-0001',
-          clientId: clientId,
-          workerId: workerId,
-          category: category,
-          description: description,
-          serviceDate: serviceDate,
-          timeSlot: timeSlot,
-          address: address,
-          estimateMin: estimateMin,
-          estimateMax: estimateMax,
-        ),
-      );
+      return const Error(ServerFailure('Backend not configured'));
     }
     try {
       final row = await SupabaseService.client
@@ -71,7 +57,7 @@ class BookingsRepository {
   /// Returns {orderId, amount} or failure. Never trusts client-computed amounts.
   Future<Result<Map<String, dynamic>>> createOrder(String bookingId) async {
     if (!SupabaseService.isReady) {
-      return const Success({'order_id': 'order_DEMO', 'amount': 2000});
+      return const Error(PaymentFailure('Backend not configured'));
     }
     try {
       final res = await SupabaseService.client.functions.invoke(
