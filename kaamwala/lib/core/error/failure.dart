@@ -4,6 +4,10 @@
 /// UI never sees raw exceptions."
 library;
 
+import 'dart:async';
+
+import 'package:kaamwala/services/analytics_service.dart';
+
 sealed class Failure {
   const Failure(this.message);
 
@@ -48,7 +52,10 @@ final class Error<T> extends Result<T> {
 }
 
 /// Maps raw exceptions into typed [Failure]s at the repository boundary.
+/// Every mapped exception is also reported to Crashlytics (no-op without
+/// Firebase) so production failures are observable.
 Failure mapException(Object e) {
+  unawaited(AnalyticsService.recordError(e, StackTrace.current));
   if (e is FormatException || e is TypeError) {
     return const ServerFailure();
   }

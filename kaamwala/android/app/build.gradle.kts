@@ -75,4 +75,5 @@ flutter {
 // Applied post-plugins because the plugins {} block cannot call file().
 if (file("google-services.json").exists()) {
     apply(plugin = "com.google.gms.google-services")
+    apply(plugin = "com.google.firebase.crashlytics")
 }

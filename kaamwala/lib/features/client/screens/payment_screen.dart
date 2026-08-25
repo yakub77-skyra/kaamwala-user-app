@@ -2,6 +2,8 @@
 /// Order created by Edge Function; client only gets order_id + key_id.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -9,6 +11,7 @@ import 'package:go_router/go_router.dart';
 import 'package:kaamwala/core/error/failure.dart';
 import 'package:kaamwala/core/theme/app_theme.dart';
 import 'package:kaamwala/features/client/providers/client_providers.dart';
+import 'package:kaamwala/services/analytics_service.dart';
 import 'package:kaamwala/services/razorpay_service.dart';
 
 enum PayStage { creating, checkout, processing, success }
@@ -46,8 +49,19 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
       case Success(:final data):
         _razorpayOrderId = data['order_id'] as String?;
         _amountPaise = (data['amount'] as num? ?? 2000).toInt();
+        unawaited(
+          AnalyticsService.logEvent('order_created', {
+            'booking_id': widget.bookingId,
+            'amount': _amountPaise,
+          }),
+        );
         setState(() => _stage = PayStage.checkout);
       case Error(:final failure):
+        unawaited(
+          AnalyticsService.logEvent('order_failed', {
+            'booking_id': widget.bookingId,
+          }),
+        );
         setState(() {
           _stage = PayStage.checkout;
           _error = failure.message;
@@ -65,10 +79,22 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
       description: 'Booking fee',
       onSuccess: (_) {
         if (!mounted) return;
+        unawaited(
+          AnalyticsService.logEvent('payment_succeeded', {
+            'booking_id': widget.bookingId,
+            'amount': _amountPaise,
+          }),
+        );
         setState(() => _stage = PayStage.success);
       },
       onError: (msg) {
         if (!mounted) return;
+        unawaited(
+          AnalyticsService.logEvent('payment_failed', {
+            'booking_id': widget.bookingId,
+            'reason': msg.length > 90 ? msg.substring(0, 90) : msg,
+          }),
+        );
         setState(() {
           _stage = PayStage.checkout;
           _error = msg;

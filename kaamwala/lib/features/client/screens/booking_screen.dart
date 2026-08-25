@@ -1,6 +1,8 @@
 /// Single-screen booking form (Phase 3 C8) - NO wizard, NO fee tiers.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -10,6 +12,7 @@ import 'package:kaamwala/core/constants/app_constants.dart';
 import 'package:kaamwala/core/error/failure.dart';
 import 'package:kaamwala/core/theme/app_theme.dart';
 import 'package:kaamwala/features/client/providers/client_providers.dart';
+import 'package:kaamwala/services/analytics_service.dart';
 import 'package:kaamwala/services/supabase_service.dart';
 
 class BookingScreen extends ConsumerStatefulWidget {
@@ -93,6 +96,11 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
     if (!mounted) return;
     switch (bookingResult) {
       case Success(:final data):
+        unawaited(
+          AnalyticsService.logEvent('booking_created', {
+            'category': ref.read(selectedCategoryProvider).name,
+          }),
+        );
         context.pushReplacement('/payment/${data.id}');
       case Error(:final failure):
         setState(() => _busy = false);

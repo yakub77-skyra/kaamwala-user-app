@@ -8,6 +8,7 @@ import 'package:kaamwala/core/error/failure.dart';
 import 'package:kaamwala/features/auth/providers/auth_controller.dart';
 import 'package:kaamwala/features/worker/repositories/worker_repository.dart';
 import 'package:kaamwala/models/booking.dart';
+import 'package:kaamwala/services/analytics_service.dart';
 import 'package:kaamwala/services/supabase_service.dart';
 
 final workerRepoProvider = Provider((_) => const WorkerRepository());
@@ -38,7 +39,10 @@ class WorkerJobsController extends AsyncNotifier<List<Booking>> {
           expectedFrom: BookingStatus.pending,
         );
     final ok = res is Success;
-    if (ok) await refresh();
+    if (ok) {
+      await AnalyticsService.logEvent('job_accepted', {'booking_id': b.id});
+      await refresh();
+    }
     return ok;
   }
 

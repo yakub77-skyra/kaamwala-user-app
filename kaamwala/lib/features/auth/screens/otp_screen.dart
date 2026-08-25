@@ -13,6 +13,7 @@ import 'package:kaamwala/core/error/failure.dart';
 import 'package:kaamwala/core/theme/app_theme.dart';
 import 'package:kaamwala/features/auth/providers/auth_controller.dart';
 import 'package:kaamwala/features/auth/repositories/auth_repository.dart';
+import 'package:kaamwala/services/analytics_service.dart';
 
 const _resendLimitPerHour = 3;
 const _otpExpirySeconds = 5 * 60;
@@ -42,7 +43,12 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
     _startTimer();
     // FR-AUTH-01: SMS goes out as soon as the screen opens. In demo mode
     // (no backend configured) sendOtp is a no-op success.
-    Future<void>.microtask(() => _repo.sendOtp(_phone));
+    Future<void>.microtask(() async {
+      final r = await _repo.sendOtp(_phone);
+      if (r is Success<void>) {
+        unawaited(AnalyticsService.logEvent('otp_requested'));
+      }
+    });
   }
 
   @override
@@ -79,6 +85,9 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
       case Success():
         setState(() => _resendsLeft--);
         _startTimer();
+        unawaited(
+          AnalyticsService.logEvent('otp_requested', {'via': 'resend'}),
+        );
         _showSnack('OTP sent again to $_phone');
       case Error(:final failure):
         _showSnack(failure.message);
@@ -96,6 +105,7 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
     switch (result) {
       case Success(:final data):
         // Demo mode (data == null) lands on role selection like before.
+        unawaited(AnalyticsService.logEvent('otp_verified'));
         ref.read(authControllerProvider.notifier).authenticatedAs(data);
       case Error(:final failure):
         setState(() => _busy = false);

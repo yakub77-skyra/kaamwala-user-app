@@ -10,6 +10,8 @@ import 'package:kaamwala/core/env/env.dart';
 import 'package:kaamwala/core/routing/app_router.dart';
 import 'package:kaamwala/core/theme/app_theme.dart';
 import 'package:kaamwala/features/auth/providers/auth_controller.dart';
+import 'package:kaamwala/features/shared/providers/connectivity_provider.dart';
+import 'package:kaamwala/services/analytics_service.dart';
 import 'package:kaamwala/services/fcm_service.dart';
 import 'package:kaamwala/services/supabase_service.dart';
 
@@ -21,6 +23,9 @@ Future<void> main() async {
     return;
   }
   await SupabaseService.init();
+  // Arms Crashlytics global handlers as early as possible (no-op w/o Firebase).
+  await AnalyticsService.ensureInitialized();
+  unawaited(AnalyticsService.logEvent('app_open'));
   runApp(const ProviderScope(child: KaamWalaApp()));
 }
 
@@ -121,6 +126,48 @@ class _KaamWalaAppState extends ConsumerState<KaamWalaApp> {
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(),
       routerConfig: router,
+      builder: (context, child) => _OfflineBoundary(child: child),
+    );
+  }
+}
+
+/// Shows a persistent banner above the app while offline.
+class _OfflineBoundary extends ConsumerWidget {
+  const _OfflineBoundary({required this.child});
+
+  final Widget? child;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final online = ref.watch(connectivityProvider);
+    final content = child ?? const SizedBox.shrink();
+    if (online) return content;
+    return Column(
+      children: [
+        Material(
+          color: KwColors.red,
+          child: SafeArea(
+            bottom: false,
+            child: Row(
+              children: [
+                const SizedBox(width: 16),
+                Icon(Icons.wifi_off_rounded, size: 16, color: Colors.white),
+                const SizedBox(width: 8),
+                const Expanded(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(vertical: 8),
+                    child: Text(
+                      'No internet connection',
+                      style: TextStyle(color: Colors.white, fontSize: 13),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        Expanded(child: content),
+      ],
     );
   }
 }

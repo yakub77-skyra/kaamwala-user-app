@@ -43,6 +43,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       final loc = state.matchedLocation;
       switch (auth.stage) {
         case AppStage.loading:
+        case AppStage.startupError:
           return '/';
         case AppStage.onboarding:
           return loc == '/onboarding' ? null : '/onboarding';
@@ -225,6 +226,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final stage = ref.watch(authControllerProvider).stage;
+    final failed = stage == AppStage.startupError;
     return Scaffold(
       body: DecoratedBox(
         decoration: const BoxDecoration(
@@ -266,14 +269,42 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
                 style: TextStyle(color: Colors.white.withValues(alpha: .85)),
               ),
               const SizedBox(height: 36),
-              const SizedBox(
-                width: 28,
-                height: 28,
-                child: CircularProgressIndicator(
+              if (failed) ...[
+                const Icon(
+                  Icons.cloud_off_rounded,
+                  size: 32,
                   color: Colors.white,
-                  strokeWidth: 2.5,
                 ),
-              ),
+                const SizedBox(height: 12),
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 40),
+                  child: Text(
+                    'Could not reach the server.\nCheck your internet and try again.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      height: 1.4,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                FilledButton.icon(
+                  onPressed: () => ref
+                      .read(authControllerProvider.notifier)
+                      .restoreSession(),
+                  icon: const Icon(Icons.refresh_rounded),
+                  label: const Text('Retry'),
+                ),
+              ] else
+                const SizedBox(
+                  width: 28,
+                  height: 28,
+                  child: CircularProgressIndicator(
+                    color: Colors.white,
+                    strokeWidth: 2.5,
+                  ),
+                ),
             ],
           ),
         ),

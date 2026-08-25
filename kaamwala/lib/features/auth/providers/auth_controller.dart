@@ -9,11 +9,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kaamwala/core/error/failure.dart';
 import 'package:kaamwala/features/auth/repositories/auth_repository.dart';
 import 'package:kaamwala/models/user_profile.dart';
+import 'package:kaamwala/services/analytics_service.dart';
 import 'package:kaamwala/services/fcm_service.dart';
 import 'package:kaamwala/services/supabase_service.dart';
 
 enum AppStage {
   loading,
+  startupError,
   onboarding,
   login,
   roleSelection,
@@ -35,7 +37,10 @@ class AuthController extends Notifier<AuthState> {
   AuthState build() => const AuthState();
 
   /// Splash logic - Phase 3 C1: session -> home/dashboard, else onboarding/login.
+  /// Network/server failures during restore land on [AppStage.startupError]
+  /// (splash offers a retry) instead of silently dumping the user to login.
   Future<void> restoreSession({bool firstRun = false}) async {
+    state = const AuthState();
     if (!SupabaseService.isReady) {
       // Demo mode without backend config: drop into client app shell.
       state = const AuthState(stage: AppStage.clientApp);
@@ -47,10 +52,18 @@ class AuthController extends Notifier<AuthState> {
       return;
     }
     final result = await _repo.fetchMyProfile();
-    final profile = switch (result) {
-      Success(:final data) => data,
-      _ => null,
-    };
+    final UserProfile? profile;
+    switch (result) {
+      case Success(:final data):
+        profile = data;
+      case Error(:final failure)
+          when failure is NetworkFailure || failure is ServerFailure:
+        state = const AuthState(stage: AppStage.startupError);
+        return;
+      case Error():
+        // Auth/other failure - treat like a missing profile (re-auth flow).
+        profile = null;
+    }
     if (profile == null || profile.name.isEmpty) {
       state = AuthState(stage: AppStage.roleSelection, profile: profile);
     } else {
@@ -111,6 +124,12 @@ class AuthController extends Notifier<AuthState> {
         profile: result.data,
       );
       unawaited(_registerPushToken());
+      unawaited(AnalyticsService.setUserRole(asWorker ? 'worker' : 'client'));
+      unawaited(
+        AnalyticsService.logEvent('onboarding_completed', {
+          'role': asWorker ? 'worker' : 'client',
+        }),
+      );
       return true;
     }
     return false;

@@ -6,12 +6,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import 'dart:async';
+
 import 'package:kaamwala/core/constants/app_constants.dart';
 import 'package:kaamwala/core/error/failure.dart';
 import 'package:kaamwala/core/theme/app_theme.dart';
 import 'package:kaamwala/features/client/providers/client_providers.dart';
 import 'package:kaamwala/features/shared/widgets/common_widgets.dart';
 import 'package:kaamwala/models/booking.dart';
+import 'package:kaamwala/services/analytics_service.dart';
 
 enum _BookingsFilter { active, completed, cancelled, all }
 
@@ -330,6 +333,7 @@ class BookingDetailScreen extends ConsumerWidget {
     final res = await ref.read(bookingsRepoProvider).cancel(b.id);
     if (!context.mounted) return;
     final ok = res is Success<void>;
+    if (ok) unawaited(AnalyticsService.logEvent('booking_cancelled'));
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
@@ -371,6 +375,11 @@ class BookingDetailScreen extends ConsumerWidget {
                         .confirmCompletion(booking.id);
                     if (!context.mounted) return;
                     if (res is Success<void>) {
+                      unawaited(
+                        AnalyticsService.logEvent('completion_confirmed', {
+                          'booking_id': booking.id,
+                        }),
+                      );
                       context.push('/rate/${booking.id}');
                     } else {
                       ScaffoldMessenger.of(context).showSnackBar(

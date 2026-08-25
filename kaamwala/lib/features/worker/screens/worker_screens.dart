@@ -6,6 +6,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import 'dart:async';
+
 import 'package:kaamwala/core/constants/app_constants.dart';
 import 'package:kaamwala/core/error/failure.dart';
 import 'package:kaamwala/core/theme/app_theme.dart';
@@ -13,6 +15,7 @@ import 'package:kaamwala/features/shared/widgets/common_widgets.dart';
 import 'package:kaamwala/features/worker/providers/worker_providers.dart';
 import 'package:kaamwala/features/worker/repositories/worker_repository.dart';
 import 'package:kaamwala/models/booking.dart';
+import 'package:kaamwala/services/analytics_service.dart';
 
 /// W2 - Profile under review gate. Worker cannot see jobs until approved.
 class UnderReviewScreen extends StatelessWidget {
@@ -594,9 +597,12 @@ class _ActiveJobScreenState extends ConsumerState<ActiveJobScreen> {
   Future<void> _advance(Booking b, BookingStatus next) async {
     if (_busy) return;
     setState(() => _busy = true);
-    await ref
+    final res = await ref
         .read(workerRepoProvider)
         .updateStatus(widget.bookingId, next, expectedFrom: b.status);
+    if (res is Success) {
+      unawaited(AnalyticsService.logEvent('job_${next.dbValue}'));
+    }
     await ref.read(activeJobsProvider.notifier).refresh();
     await ref.read(completedJobsProvider.notifier).refresh();
     if (!mounted) return;
