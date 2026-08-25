@@ -63,7 +63,6 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
       amountPaise: _amountPaise,
       name: 'KaamWala',
       description: 'Booking fee',
-      contactPhone: '+919876543210',
       onSuccess: (_) {
         if (!mounted) return;
         setState(() => _stage = PayStage.success);
@@ -85,10 +84,10 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
   }
 
   String get _statusText => switch (_stage) {
-    PayStage.creating => '◌ Creating order…',
+    PayStage.creating => 'Creating order…',
     PayStage.checkout => 'Ready to pay',
-    PayStage.processing => '◌ Processing…',
-    PayStage.success => '✅ Success',
+    PayStage.processing => 'Processing…',
+    PayStage.success => 'Payment successful',
   };
 
   @override
@@ -99,18 +98,34 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
         child: Padding(
           padding: const EdgeInsets.all(KwSpacing.lg),
           child: _stage == PayStage.success
-              ? ElevatedButton(
+              ? ElevatedButton.icon(
+                  icon: const Icon(Icons.receipt_long_rounded),
                   onPressed: () => context.go('/bookings'),
-                  child: const Text('View My Bookings'),
+                  label: const Text('View My Bookings'),
                 )
               : ElevatedButton.icon(
-                  icon: const Icon(Icons.currency_rupee),
-                  label: Text('Pay ₹${_amountPaise ~/ 100}'),
+                  icon:
+                      _stage == PayStage.processing ||
+                          _stage == PayStage.creating
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Icon(Icons.currency_rupee_rounded),
                   onPressed:
                       (_razorpayOrderId == null ||
                           _stage == PayStage.processing)
                       ? null
                       : _openCheckout,
+                  label: Text(
+                    _stage == PayStage.checkout
+                        ? 'Pay ₹${_amountPaise ~/ 100}'
+                        : _statusText,
+                  ),
                 ),
         ),
       ),
@@ -119,39 +134,72 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
         children: [
           Card(
             margin: EdgeInsets.zero,
-            child: ListTile(
-              title: Text('Booking #${widget.bookingId.substring(0, 8)}'),
-              subtitle: const Text('Booking Fee'),
-              trailing: Text(
-                '₹${_amountPaise ~/ 100}',
-                style: Theme.of(context).textTheme.titleMedium
-                    ?.copyWith(fontWeight: FontWeight.w800),
+            child: Padding(
+              padding: const EdgeInsets.all(KwSpacing.lg),
+              child: Column(
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('Booking fee'),
+                      Text(
+                        '₹${_amountPaise ~/ 100}',
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(fontWeight: FontWeight.w800),
+                      ),
+                    ],
+                  ),
+                  const Divider(height: KwSpacing.lg),
+                  Row(
+                    children: [
+                      Icon(Icons.lock_rounded, size: 15, color: KwColors.green),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          'Secured by Razorpay • UPI, cards & netbanking',
+                          style: Theme.of(context).textTheme.labelSmall
+                              ?.copyWith(color: KwColors.muted),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
           ),
-          const SizedBox(height: KwSpacing.lg),
-          Text('Pay with', style: Theme.of(context).textTheme.titleSmall),
-          const SizedBox(height: KwSpacing.sm),
-          Wrap(
-            spacing: KwSpacing.sm,
-            runSpacing: KwSpacing.sm,
-            children: [
-              for (final upi in ['GPay', 'PhonePe', 'Paytm', 'Other UPI'])
-                FilterChip(
-                  label: Text(upi),
-                  selected: upi == 'GPay',
-                  onSelected: (_) {},
+          const SizedBox(height: KwSpacing.md),
+          Card(
+            margin: EdgeInsets.zero,
+            child: ListTile(
+              leading: Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: KwColors.blueLight,
+                  borderRadius: BorderRadius.circular(11),
                 ),
-              FilterChip(
-                label: const Text('Card / NetBanking'),
-                onSelected: (_) {},
+                child: const Icon(
+                  Icons.undo_rounded,
+                  size: 19,
+                  color: KwColors.blue,
+                ),
               ),
-            ],
+              title: const Text(
+                'Full refund if you cancel',
+                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+              ),
+              subtitle: Text(
+                'Cancel any time before the worker accepts — money returns to your source automatically.',
+                style: TextStyle(fontSize: 12, height: 1.35),
+              ),
+              isThreeLine: true,
+            ),
           ),
           if (_error != null) ...[
             const SizedBox(height: KwSpacing.md),
             Text(
-              '⚠️ $_error',
+              _error!,
+              textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodySmall
                   ?.copyWith(color: KwColors.red),
             ),
@@ -163,14 +211,6 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
               style: Theme.of(context).textTheme.labelLarge
                   ?.copyWith(color: KwColors.muted),
             ),
-          ),
-          const SizedBox(height: KwSpacing.sm),
-          Text(
-            'Payment verified server-side via webhook (HMAC-SHA256).\n'
-            'Cancel before worker accepts = full ₹20 refund.',
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.labelSmall
-                ?.copyWith(color: KwColors.muted),
           ),
         ],
       ),

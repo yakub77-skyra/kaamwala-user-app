@@ -18,12 +18,14 @@ class RoleSelectionScreen extends ConsumerStatefulWidget {
 
 class _RoleSelectionScreenState extends ConsumerState<RoleSelectionScreen> {
   final _nameCtrl = TextEditingController();
+  final _cityCtrl = TextEditingController();
   bool _worker = false;
   bool _busy = false;
 
   @override
   void dispose() {
     _nameCtrl.dispose();
+    _cityCtrl.dispose();
     super.dispose();
   }
 
@@ -35,15 +37,22 @@ class _RoleSelectionScreenState extends ConsumerState<RoleSelectionScreen> {
       return;
     }
     setState(() => _busy = true);
-    await ref
+    final ok = await ref
         .read(authControllerProvider.notifier)
         .finishRoleSelection(
           name: _nameCtrl.text.trim(),
           asWorker: asWorker,
-          city: '',
+          city: _cityCtrl.text.trim(),
         );
     if (!mounted) return;
     setState(() => _busy = false);
+    if (!ok) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Could not save your profile. Try again.'),
+        ),
+      );
+    }
   }
 
   @override
@@ -59,7 +68,20 @@ class _RoleSelectionScreenState extends ConsumerState<RoleSelectionScreen> {
             TextFormField(
               controller: _nameCtrl,
               textCapitalization: TextCapitalization.words,
-              decoration: const InputDecoration(hintText: 'e.g. Rohit Sharma'),
+              decoration: const InputDecoration(
+                hintText: 'e.g. Rohit Sharma',
+                labelText: 'Your name',
+              ),
+            ),
+            const SizedBox(height: KwSpacing.md),
+            TextFormField(
+              controller: _cityCtrl,
+              textCapitalization: TextCapitalization.words,
+              decoration: const InputDecoration(
+                hintText: 'e.g. Pune (helps us find nearby workers)',
+                labelText: 'City',
+                prefixIcon: Icon(Icons.location_city_rounded),
+              ),
             ),
             const SizedBox(height: KwSpacing.md),
             Text(
@@ -68,7 +90,8 @@ class _RoleSelectionScreenState extends ConsumerState<RoleSelectionScreen> {
             ),
             const SizedBox(height: KwSpacing.md),
             _roleCard(
-              emoji: '🏠',
+              icon: Icons.home_rounded,
+              tint: KwColors.blue,
               title: 'I need a worker',
               body: 'Book plumbers, electricians & more',
               selected: !_worker,
@@ -76,7 +99,8 @@ class _RoleSelectionScreenState extends ConsumerState<RoleSelectionScreen> {
             ),
             const SizedBox(height: KwSpacing.md),
             _roleCard(
-              emoji: '🔧',
+              icon: Icons.construction_rounded,
+              tint: KwColors.primary,
               title: 'I am a worker',
               body: 'Get jobs near you & earn money daily',
               selected: _worker,
@@ -107,7 +131,8 @@ class _RoleSelectionScreenState extends ConsumerState<RoleSelectionScreen> {
   }
 
   Widget _roleCard({
-    required String emoji,
+    required IconData icon,
+    required Color tint,
     required String title,
     required String body,
     required bool selected,
@@ -129,7 +154,15 @@ class _RoleSelectionScreenState extends ConsumerState<RoleSelectionScreen> {
           padding: const EdgeInsets.all(KwSpacing.lg),
           child: Row(
             children: [
-              Text(emoji, style: const TextStyle(fontSize: 32)),
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: tint.withValues(alpha: .1),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(icon, color: tint, size: 24),
+              ),
               const SizedBox(width: KwSpacing.lg),
               Expanded(
                 child: Column(
@@ -149,6 +182,18 @@ class _RoleSelectionScreenState extends ConsumerState<RoleSelectionScreen> {
                   ],
                 ),
               ),
+              if (selected)
+                const Icon(
+                  Icons.check_circle_rounded,
+                  color: KwColors.primary,
+                  size: 22,
+                )
+              else
+                const Icon(
+                  Icons.radio_button_unchecked_rounded,
+                  color: KwColors.muted,
+                  size: 22,
+                ),
             ],
           ),
         ),

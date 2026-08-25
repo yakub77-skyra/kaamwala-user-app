@@ -18,22 +18,19 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   static const _slides = [
     (
-      icon: Icons.verified_user,
+      icon: Icons.verified_user_rounded,
       title: 'Find Verified Workers',
       body: 'Aadhar-checked plumbers & electricians near you.',
-      emoji: '🔍',
     ),
     (
-      icon: Icons.bolt,
+      icon: Icons.bolt_rounded,
       title: 'Book in 3 Taps',
       body: 'Pick a worker, describe the job, done. No long forms.',
-      emoji: '⚡',
     ),
     (
-      icon: Icons.currency_rupee,
+      icon: Icons.currency_rupee_rounded,
       title: 'Pay Safely with UPI',
       body: 'GPay, PhonePe, Paytm - pay only when booked.',
-      emoji: '💰',
     ),
   ];
 
@@ -79,7 +76,15 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Text(s.emoji, style: const TextStyle(fontSize: 72)),
+                      Container(
+                        width: 120,
+                        height: 120,
+                        decoration: BoxDecoration(
+                          color: KwColors.primaryLight,
+                          borderRadius: BorderRadius.circular(36),
+                        ),
+                        child: Icon(s.icon, size: 56, color: KwColors.primary),
+                      ),
                       const SizedBox(height: KwSpacing.xl),
                       Text(
                         s.title,
@@ -132,7 +137,13 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   ),
                 ),
                 const SizedBox(height: KwSpacing.lg),
-                ElevatedButton(onPressed: _next, child: const Text('Next')),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: _next,
+                    child: const Text('Next'),
+                  ),
+                ),
               ],
             ),
           ),

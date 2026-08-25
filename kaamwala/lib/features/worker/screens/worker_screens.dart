@@ -111,24 +111,43 @@ class _WorkerDashboardScreenState extends ConsumerState<WorkerDashboardScreen> {
           physics: const AlwaysScrollableScrollPhysics(),
           children: [
             Card(
-              color: _available
-                  ? KwColors.green.withValues(alpha: .08)
-                  : KwColors.surface,
               margin: EdgeInsets.zero,
-              child: SwitchListTile(
-                value: _available,
-                onChanged: (v) {
-                  // Repo call no-ops in demo mode (FR-WORKER-03).
-                  setState(() => _available = v);
-                  ref.read(workerRepoProvider).setAvailability(v);
-                },
-                activeThumbColor: KwColors.green,
-                title: Text(
-                  'काम के लिए उपलब्ध?',
-                  style: Theme.of(context).textTheme.titleMedium
-                      ?.copyWith(fontWeight: FontWeight.w700),
+              clipBehavior: Clip.antiAlias,
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: _available
+                      ? const LinearGradient(
+                          colors: [Color(0xFFE9F9F0), KwColors.surface],
+                          begin: Alignment.centerLeft,
+                          end: Alignment.centerRight,
+                        )
+                      : null,
                 ),
-                subtitle: const Text('Available for jobs'),
+                child: SwitchListTile(
+                  value: _available,
+                  onChanged: (v) {
+                    // Repo call no-ops in demo mode (FR-WORKER-03).
+                    setState(() => _available = v);
+                    ref.read(workerRepoProvider).setAvailability(v);
+                  },
+                  activeThumbColor: KwColors.green,
+                  secondary: Icon(
+                    _available
+                        ? Icons.wb_sunny_rounded
+                        : Icons.nightlight_round,
+                    color: _available ? KwColors.green : KwColors.muted,
+                  ),
+                  title: Text(
+                    'काम के लिए उपलब्ध?',
+                    style: Theme.of(context).textTheme.titleMedium
+                        ?.copyWith(fontWeight: FontWeight.w800),
+                  ),
+                  subtitle: Text(
+                    _available
+                        ? 'Clients can book you right now'
+                        : 'You are hidden from search',
+                  ),
+                ),
               ),
             ),
             if (active.isNotEmpty) ...[
@@ -139,48 +158,20 @@ class _WorkerDashboardScreenState extends ConsumerState<WorkerDashboardScreen> {
             Row(
               children: [
                 Expanded(
-                  child: Card(
-                    margin: EdgeInsets.zero,
-                    child: Padding(
-                      padding: const EdgeInsets.all(KwSpacing.lg),
-                      child: Column(
-                        children: [
-                          Text(
-                            'आज के काम',
-                            style: Theme.of(context).textTheme.labelSmall,
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            '${stats.activeCount}',
-                            style: Theme.of(context).textTheme.headlineMedium
-                                ?.copyWith(fontWeight: FontWeight.w800),
-                          ),
-                        ],
-                      ),
-                    ),
+                  child: _StatCard(
+                    label: 'आज के काम',
+                    value: '${stats.activeCount}',
+                    icon: Icons.construction_rounded,
+                    tint: KwColors.blue,
                   ),
                 ),
                 const SizedBox(width: KwSpacing.md),
                 Expanded(
-                  child: Card(
-                    margin: EdgeInsets.zero,
-                    child: Padding(
-                      padding: const EdgeInsets.all(KwSpacing.lg),
-                      child: Column(
-                        children: [
-                          Text(
-                            'आज की कमाई',
-                            style: Theme.of(context).textTheme.labelSmall,
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            '₹${_money(stats.todayEarning)}',
-                            style: Theme.of(context).textTheme.headlineMedium
-                                ?.copyWith(fontWeight: FontWeight.w800),
-                          ),
-                        ],
-                      ),
-                    ),
+                  child: _StatCard(
+                    label: 'आज की कमाई',
+                    value: '₹${_money(stats.todayEarning)}',
+                    icon: Icons.currency_rupee_rounded,
+                    tint: KwColors.green,
                   ),
                 ),
               ],
@@ -222,17 +213,45 @@ class _WorkerDashboardScreenState extends ConsumerState<WorkerDashboardScreen> {
   Widget _activeJobTile(BuildContext context, Booking b) {
     return Card(
       margin: const EdgeInsets.only(bottom: KwSpacing.md),
-      color: KwColors.primary.withValues(alpha: .06),
-      child: ListTile(
+      child: InkWell(
         onTap: () => context.go('/w/active/${b.id}'),
-        leading: Text(b.category.labelHi, style: const TextStyle(fontSize: 20)),
-        title: Text(
-          b.description,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
+        child: Padding(
+          padding: const EdgeInsets.all(KwSpacing.lg),
+          child: Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: KwColors.primaryLight,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(b.category.icon, size: 22, color: KwColors.primary),
+              ),
+              const SizedBox(width: KwSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      b.description,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.titleSmall
+                          ?.copyWith(fontWeight: FontWeight.w800),
+                    ),
+                    Text(
+                      b.status.label,
+                      style: Theme.of(context).textTheme.bodySmall
+                          ?.copyWith(color: KwColors.muted),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right_rounded, color: KwColors.muted),
+            ],
+          ),
         ),
-        subtitle: Text(b.status.label),
-        trailing: const Icon(Icons.chevron_right),
       ),
     );
   }
@@ -247,25 +266,57 @@ class _WorkerDashboardScreenState extends ConsumerState<WorkerDashboardScreen> {
           children: [
             Row(
               children: [
-                Text(b.category.labelHi, style: const TextStyle(fontSize: 18)),
+                Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: KwColors.primaryLight,
+                    borderRadius: BorderRadius.circular(11),
+                  ),
+                  child: Icon(
+                    b.category.icon,
+                    size: 20,
+                    color: KwColors.primary,
+                  ),
+                ),
                 const SizedBox(width: KwSpacing.md),
                 Expanded(
                   child: Text(
-                    b.description,
+                    '${b.clientName.isEmpty ? 'New job' : b.clientName} • ~₹${b.estimateMin}',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.titleMedium,
+                    style: Theme.of(context).textTheme.titleSmall
+                        ?.copyWith(fontWeight: FontWeight.w800),
                   ),
                 ),
               ],
             ),
+            if (b.description.isNotEmpty) ...[
+              const SizedBox(height: KwSpacing.sm),
+              Text(
+                b.description,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ],
             const SizedBox(height: 4),
-            Text(
-              '${b.clientName.isEmpty ? 'Client' : b.clientName} • ${b.address.isEmpty ? b.ref : b.address} • ~₹${b.estimateMin}',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.bodySmall
-                  ?.copyWith(color: KwColors.muted),
+            Row(
+              children: [
+                Icon(Icons.place_outlined, size: 14, color: KwColors.muted),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    b.address.isEmpty
+                        ? b.ref
+                        : '${b.address}${b.timeSlot.isNotEmpty ? ' • ${b.timeSlot}' : ''}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.labelMedium
+                        ?.copyWith(color: KwColors.muted),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: KwSpacing.md),
             Row(
@@ -282,9 +333,10 @@ class _WorkerDashboardScreenState extends ConsumerState<WorkerDashboardScreen> {
                 ),
                 const SizedBox(width: KwSpacing.md),
                 Expanded(
+                  flex: 2,
                   child: ElevatedButton.icon(
-                    icon: const Icon(Icons.check, size: 18),
-                    label: const Text('✅ Accept'),
+                    icon: const Icon(Icons.check_rounded, size: 18),
+                    label: const Text('Accept'),
                     onPressed: () async {
                       final ok = await ref
                           .read(workerJobsProvider.notifier)
@@ -295,6 +347,56 @@ class _WorkerDashboardScreenState extends ConsumerState<WorkerDashboardScreen> {
                   ),
                 ),
               ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Compact stat tile used on the worker dashboard.
+class _StatCard extends StatelessWidget {
+  const _StatCard({
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.tint,
+  });
+  final String label;
+  final String value;
+  final IconData icon;
+  final Color tint;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(KwSpacing.lg),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                color: tint.withValues(alpha: .1),
+                borderRadius: BorderRadius.circular(9),
+              ),
+              child: Icon(icon, size: 17, color: tint),
+            ),
+            const SizedBox(height: KwSpacing.sm),
+            Text(
+              value,
+              style: Theme.of(context).textTheme.headlineSmall
+                  ?.copyWith(fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              label,
+              style: Theme.of(context).textTheme.labelSmall
+                  ?.copyWith(color: KwColors.muted),
             ),
           ],
         ),
@@ -357,8 +459,8 @@ class JobDetailScreen extends ConsumerWidget {
                       Expanded(
                         flex: 2,
                         child: ElevatedButton.icon(
-                          icon: const Icon(Icons.check),
-                          label: const Text('✅ Accept'),
+                          icon: const Icon(Icons.check_rounded),
+                          label: const Text('Accept Job'),
                           onPressed: () async {
                             final ok = await ref
                                 .read(workerJobsProvider.notifier)
@@ -627,26 +729,52 @@ class EarningsScreen extends ConsumerWidget {
           return ListView(
             padding: const EdgeInsets.all(KwSpacing.lg),
             children: [
-              Card(
-                margin: EdgeInsets.zero,
-                child: Padding(
-                  padding: const EdgeInsets.all(KwSpacing.xl),
-                  child: Column(
-                    children: [
-                      Text(
-                        'इस महीने (This Month)',
-                        style: Theme.of(context).textTheme.labelLarge,
-                      ),
-                      const SizedBox(height: KwSpacing.sm),
-                      Text(
-                        '₹${_money(month)}',
-                        style: Theme.of(context).textTheme.displaySmall
-                            ?.copyWith(fontWeight: FontWeight.w800),
-                      ),
-                      const SizedBox(height: KwSpacing.sm),
-                      Text('This Week ₹${_money(week)}'),
-                    ],
+              Container(
+                padding: const EdgeInsets.all(KwSpacing.xl),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [KwColors.primary, KwColors.primaryDark],
                   ),
+                  borderRadius: BorderRadius.circular(KwRadius.card),
+                ),
+                child: Column(
+                  children: [
+                    Text(
+                      'इस महीने (This Month)',
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: .85),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: KwSpacing.sm),
+                    Text(
+                      '₹${_money(month)}',
+                      style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(height: KwSpacing.sm),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: .18),
+                        borderRadius: BorderRadius.circular(KwRadius.chip),
+                      ),
+                      child: Text(
+                        'This week ₹${_money(week)}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(height: KwSpacing.lg),
@@ -666,25 +794,54 @@ class EarningsScreen extends ConsumerWidget {
                 )
               else
                 for (final b in list)
-                  ListTile(
-                    leading: Text(
-                      b.category.labelHi,
-                      style: const TextStyle(fontSize: 20),
-                    ),
-                    title: Text(
-                      b.description.isEmpty
-                          ? b.category.labelEn
-                          : b.description,
-                    ),
-                    subtitle: Text(
-                      b.status == BookingStatus.completed && b.clientConfirmed
-                          ? 'Paid'
-                          : 'Awaiting client confirmation',
-                    ),
-                    trailing: Text(
-                      '+₹${_money(b.workerEarning)} ${b.clientConfirmed ? '✅' : '🟡'}',
-                      style: Theme.of(context).textTheme.titleSmall
-                          ?.copyWith(color: KwColors.green),
+                  Card(
+                    margin: const EdgeInsets.only(bottom: KwSpacing.md),
+                    child: ListTile(
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: KwSpacing.lg,
+                        vertical: KwSpacing.xs,
+                      ),
+                      leading: Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: KwColors.primaryLight,
+                          borderRadius: BorderRadius.circular(11),
+                        ),
+                        child: Icon(
+                          b.category.icon,
+                          size: 20,
+                          color: KwColors.primary,
+                        ),
+                      ),
+                      title: Text(
+                        b.description.isEmpty
+                            ? b.category.labelEn
+                            : b.description,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.titleSmall
+                            ?.copyWith(fontWeight: FontWeight.w700),
+                      ),
+                      subtitle: Text(
+                        b.status == BookingStatus.completed && b.clientConfirmed
+                            ? 'Paid ✓'
+                            : 'Awaiting client confirmation',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: b.clientConfirmed
+                              ? KwColors.green
+                              : KwColors.gold,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      trailing: Text(
+                        '+₹${_money(b.workerEarning)}',
+                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          color: KwColors.green,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
                     ),
                   ),
               const SizedBox(height: KwSpacing.md),

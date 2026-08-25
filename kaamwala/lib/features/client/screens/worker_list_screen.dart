@@ -13,6 +13,8 @@ import 'package:kaamwala/features/auth/providers/auth_controller.dart';
 import 'package:kaamwala/features/client/providers/client_providers.dart';
 import 'package:kaamwala/features/shared/widgets/common_widgets.dart';
 
+enum WorkerSort { rating, priceLowHigh, priceHighLow }
+
 class WorkerListScreen extends ConsumerStatefulWidget {
   const WorkerListScreen({super.key});
 
@@ -24,6 +26,7 @@ class _WorkerListScreenState extends ConsumerState<WorkerListScreen> {
   final _searchCtrl = TextEditingController();
   Timer? _debounce;
   String? _city;
+  WorkerSort _sort = WorkerSort.rating;
 
   @override
   void initState() {
@@ -57,17 +60,51 @@ class _WorkerListScreenState extends ConsumerState<WorkerListScreen> {
     final category = ref.watch(selectedCategoryProvider);
     final workersState = ref.watch(workersByCategoryProvider(category));
 
+    final sorted = [...workersState.workers];
+    switch (_sort) {
+      case WorkerSort.rating:
+        sorted.sort((a, b) => b.ratingAvg.compareTo(a.ratingAvg));
+      case WorkerSort.priceLowHigh:
+        sorted.sort((a, b) => a.priceMin.compareTo(b.priceMin));
+      case WorkerSort.priceHighLow:
+        sorted.sort((a, b) => b.priceMax.compareTo(a.priceMax));
+    }
+
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          _city == null
-              ? '${category.labelEn}s'
-              : '${category.labelEn}s • $_city',
+        titleSpacing: KwSpacing.lg,
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('${category.labelEn}s'),
+            if (_city != null)
+              Text(
+                'in $_city',
+                style: Theme.of(context).textTheme.labelSmall
+                    ?.copyWith(color: KwColors.muted),
+              ),
+          ],
         ),
         actions: [
-          IconButton(
-            onPressed: () => _load(name: _searchCtrl.text),
-            icon: const Icon(Icons.refresh),
+          PopupMenuButton<WorkerSort>(
+            tooltip: 'Sort',
+            initialValue: _sort,
+            onSelected: (s) => setState(() => _sort = s),
+            icon: const Icon(Icons.sort_rounded),
+            itemBuilder: (context) => const [
+              PopupMenuItem(
+                value: WorkerSort.rating,
+                child: Text('Top rated first'),
+              ),
+              PopupMenuItem(
+                value: WorkerSort.priceLowHigh,
+                child: Text('Price: low to high'),
+              ),
+              PopupMenuItem(
+                value: WorkerSort.priceHighLow,
+                child: Text('Price: high to low'),
+              ),
+            ],
           ),
         ],
       ),
@@ -76,20 +113,21 @@ class _WorkerListScreenState extends ConsumerState<WorkerListScreen> {
           Padding(
             padding: const EdgeInsets.fromLTRB(
               KwSpacing.lg,
-              KwSpacing.sm,
+              KwSpacing.xs,
               KwSpacing.lg,
-              0,
+              KwSpacing.sm,
             ),
-            child: TextFormField(
+            child: TextField(
               controller: _searchCtrl,
               onChanged: _onSearchChanged,
+              textInputAction: TextInputAction.search,
               decoration: InputDecoration(
-                prefixIcon: const Icon(Icons.search),
+                prefixIcon: const Icon(Icons.search_rounded),
                 hintText: 'Search by name',
                 suffixIcon: _searchCtrl.text.isEmpty
                     ? null
                     : IconButton(
-                        icon: const Icon(Icons.clear),
+                        icon: const Icon(Icons.clear_rounded, size: 20),
                         onPressed: () {
                           _searchCtrl.clear();
                           _load();
@@ -101,23 +139,26 @@ class _WorkerListScreenState extends ConsumerState<WorkerListScreen> {
           Expanded(
             child: workersState.loading
                 ? const Center(child: CircularProgressIndicator())
-                : workersState.workers.isEmpty
+                : sorted.isEmpty
                 ? EmptyState(
                     emoji: '🔍',
-                    title: 'No workers found',
-                    subtitle: 'Try another category or check back soon.',
+                    title: 'No ${category.labelEn.toLowerCase()}s found',
+                    subtitle: 'Try a different category or check back soon - new workers join every day.',
                   )
                 : RefreshIndicator(
                     onRefresh: () async => _load(name: _searchCtrl.text),
                     child: ListView.builder(
                       physics: const AlwaysScrollableScrollPhysics(),
-                      padding: const EdgeInsets.all(KwSpacing.lg),
-                      itemCount: workersState.workers.length,
+                      padding: const EdgeInsets.fromLTRB(
+                        KwSpacing.lg,
+                        KwSpacing.sm,
+                        KwSpacing.lg,
+                        KwSpacing.xxl,
+                      ),
+                      itemCount: sorted.length,
                       itemBuilder: (context, i) => WorkerCard(
-                        worker: workersState.workers[i],
-                        onTap: () => context.push(
-                          '/worker/${workersState.workers[i].id}',
-                        ),
+                        worker: sorted[i],
+                        onTap: () => context.push('/worker/${sorted[i].id}'),
                       ),
                     ),
                   ),

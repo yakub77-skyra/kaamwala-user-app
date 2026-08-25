@@ -93,6 +93,34 @@ class AuthRepository {
     }
   }
 
+  /// Self-edit of name/city. Role and phone are locked server-side.
+  Future<Result<UserProfile>> updateDetails({
+    String? name,
+    String? city,
+  }) async {
+    if (!SupabaseService.isReady) {
+      return Error(const ServerFailure('Backend not configured'));
+    }
+    final uid = SupabaseService.currentUserId;
+    if (uid == null) return const Error(AuthFailure());
+    try {
+      final patch = <String, dynamic>{
+        if (name != null && name.trim().isNotEmpty) 'name': name.trim(),
+        if (city != null) 'city': city.trim(),
+      };
+      if (patch.isEmpty) return Error(const ServerFailure('Nothing to update'));
+      final updated = await SupabaseService.client
+          .from('users')
+          .update(patch)
+          .eq('id', uid)
+          .select()
+          .single();
+      return Success(UserProfile.fromMap(updated));
+    } catch (e) {
+      return Error(mapException(e));
+    }
+  }
+
   /// Uploads a compressed avatar to the PUBLIC profiles bucket under my own
   /// folder (storage RLS: first path segment must be my uid), then persists
   /// the public URL on users.photo_url.

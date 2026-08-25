@@ -52,7 +52,32 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           padding: const EdgeInsets.all(KwSpacing.xl),
           children: [
             const SizedBox(height: KwSpacing.xxl),
-            const Center(child: Text('🔧', style: TextStyle(fontSize: 64))),
+            Center(
+              child: Container(
+                width: 88,
+                height: 88,
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [KwColors.primary, KwColors.primaryDark],
+                  ),
+                  borderRadius: BorderRadius.circular(26),
+                  boxShadow: [
+                    BoxShadow(
+                      color: KwColors.primary.withValues(alpha: .35),
+                      blurRadius: 24,
+                      offset: const Offset(0, 10),
+                    ),
+                  ],
+                ),
+                child: const Icon(
+                  Icons.handyman_rounded,
+                  size: 44,
+                  color: Colors.white,
+                ),
+              ),
+            ),
             const SizedBox(height: KwSpacing.md),
             Center(
               child: Text(
@@ -92,7 +117,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               ],
             ),
             const SizedBox(height: KwSpacing.lg),
-            ElevatedButton(onPressed: _sendOtp, child: const Text('Send OTP')),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: _sendOtp,
+                child: const Text('Send OTP'),
+              ),
+            ),
             const SizedBox(height: KwSpacing.lg),
             Row(
               children: [

@@ -5,6 +5,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:kaamwala/core/error/failure.dart';
@@ -66,7 +67,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     );
     if (_scroll.hasClients) {
       await Future<void>.delayed(const Duration(milliseconds: 50));
-      if (_scroll.hasClients) {
+      if (_scroll.hasClients && mounted) {
         _scroll.jumpTo(_scroll.position.maxScrollExtent);
       }
     }
@@ -75,12 +76,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   Future<void> _send() async {
     final text = _ctrl.text.trim();
     if (text.isEmpty || _sending) return;
-    _sending = true;
+    setState(() => _sending = true);
     _ctrl.clear();
     await ref
         .read(chatRepoProvider)
         .send(bookingId: widget.bookingId, senderId: _myId!, content: text);
-    _sending = false;
+    if (!mounted) return;
+    setState(() => _sending = false);
     await _load();
   }
 
@@ -97,13 +99,20 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        titleSpacing: 0,
         title: Row(
           children: [
-            Flexible(child: Text(_title, overflow: TextOverflow.ellipsis)),
-            const SizedBox(width: KwSpacing.sm),
-            Icon(Icons.circle, size: 8, color: KwColors.green),
-            const SizedBox(width: 2),
-            const Text('online', style: TextStyle(fontSize: 12)),
+            CircleAvatar(
+              radius: 17,
+              backgroundColor: KwColors.primaryLight,
+              child: Icon(
+                Icons.person_rounded,
+                size: 19,
+                color: KwColors.primary.withValues(alpha: .8),
+              ),
+            ),
+            const SizedBox(width: KwSpacing.md),
+            Expanded(child: Text(_title, overflow: TextOverflow.ellipsis)),
           ],
         ),
       ),
@@ -111,57 +120,43 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         child: Column(
           children: [
             Expanded(
-              child: ListView.builder(
-                controller: _scroll,
-                padding: const EdgeInsets.all(KwSpacing.lg),
-                itemCount: _messages.length,
-                itemBuilder: (context, i) {
-                  final m = _messages[i];
-                  final mine = m.senderId == _myId;
-                  return Align(
-                    alignment: mine
-                        ? Alignment.centerRight
-                        : Alignment.centerLeft,
-                    child: Container(
-                      margin: const EdgeInsets.only(bottom: KwSpacing.sm),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: KwSpacing.lg,
-                        vertical: KwSpacing.md,
-                      ),
-                      constraints: BoxConstraints(
-                        maxWidth: MediaQuery.sizeOf(context).width * .72,
-                      ),
-                      decoration: BoxDecoration(
-                        color: mine ? KwColors.primary : KwColors.surface,
-                        borderRadius: BorderRadius.circular(KwRadius.button),
-                        border: Border.all(color: const Color(0x141A1A2E)),
-                      ),
+              child: _messages.isEmpty
+                  ? Center(
                       child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          Text(
-                            m.content,
-                            style: TextStyle(
-                              color: mine ? Colors.white : KwColors.dark,
-                            ),
+                          Icon(
+                            Icons.chat_bubble_outline_rounded,
+                            size: 44,
+                            color: KwColors.muted.withValues(alpha: .4),
                           ),
-                          const SizedBox(height: 2),
+                          const SizedBox(height: KwSpacing.md),
                           Text(
-                            mine ? (m.isRead ? '✓✓ Read' : '✓ Sent') : '',
-                            style: const TextStyle(
-                              fontSize: 10,
-                              color: Colors.white70,
-                            ),
+                            'Say hello to $_title 👋',
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(color: KwColors.muted),
                           ),
                         ],
                       ),
+                    )
+                  : ListView.builder(
+                      controller: _scroll,
+                      padding: const EdgeInsets.all(KwSpacing.lg),
+                      itemCount: _messages.length,
+                      itemBuilder: (context, i) => _bubble(_messages[i]),
                     ),
-                  );
-                },
-              ),
             ),
-            Padding(
-              padding: const EdgeInsets.all(KwSpacing.md),
+            Container(
+              padding: EdgeInsets.only(
+                left: KwSpacing.md,
+                right: KwSpacing.sm,
+                top: KwSpacing.sm,
+                bottom: MediaQuery.paddingOf(context).bottom + KwSpacing.sm,
+              ),
+              decoration: const BoxDecoration(
+                color: KwColors.surface,
+                border: Border(top: BorderSide(color: KwColors.line)),
+              ),
               child: Row(
                 children: [
                   Expanded(
@@ -169,16 +164,98 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                       controller: _ctrl,
                       onSubmitted: (_) => _send(),
                       textInputAction: TextInputAction.send,
-                      decoration: const InputDecoration(
-                        hintText: 'Type a message…',
+                      textCapitalization: TextCapitalization.sentences,
+                      minLines: 1,
+                      maxLines: 4,
+                      decoration: InputDecoration(
+                        hintText: 'Message…',
+                        fillColor: KwColors.background,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: KwSpacing.lg,
+                          vertical: 10,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(24),
+                          borderSide: BorderSide.none,
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(24),
+                          borderSide: BorderSide.none,
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(24),
+                          borderSide: BorderSide.none,
+                        ),
                       ),
                     ),
                   ),
-                  IconButton.filled(
-                    onPressed: _send,
-                    icon: const Icon(Icons.send),
+                  const SizedBox(width: KwSpacing.xs),
+                  ValueListenableBuilder<TextEditingValue>(
+                    valueListenable: _ctrl,
+                    builder: (_, v, _) => IconButton.filled(
+                      style: IconButton.styleFrom(
+                        backgroundColor: v.text.trim().isEmpty
+                            ? KwColors.fill
+                            : KwColors.primary,
+                      ),
+                      onPressed: v.text.trim().isEmpty ? null : _send,
+                      icon: Icon(
+                        Icons.send_rounded,
+                        size: 20,
+                        color: v.text.trim().isEmpty
+                            ? KwColors.muted
+                            : Colors.white,
+                      ),
+                    ),
                   ),
                 ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _bubble(ChatMessage m) {
+    final mine = m.senderId == _myId;
+    final time = m.createdAt == null
+        ? ''
+        : DateFormat('HH:mm').format(m.createdAt!);
+    return Align(
+      alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: KwSpacing.sm),
+        padding: const EdgeInsets.symmetric(
+          horizontal: KwSpacing.lg,
+          vertical: 9,
+        ),
+        constraints: BoxConstraints(
+          maxWidth: MediaQuery.sizeOf(context).width * .74,
+        ),
+        decoration: BoxDecoration(
+          color: mine ? KwColors.primary : Colors.white,
+          borderRadius: BorderRadiusDirectional.only(
+            topStart: Radius.circular(16),
+            topEnd: Radius.circular(16),
+            bottomStart: Radius.circular(mine ? 16 : 4),
+            bottomEnd: Radius.circular(mine ? 4 : 16),
+          ),
+          border: mine ? null : Border.all(color: KwColors.line),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Text(
+              m.content,
+              style: TextStyle(color: mine ? Colors.white : KwColors.dark),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              mine ? '$time ${m.isRead ? '✓✓' : '✓'}' : time,
+              style: TextStyle(
+                fontSize: 10,
+                color: mine ? Colors.white70 : KwColors.muted,
               ),
             ),
           ],

@@ -24,7 +24,7 @@ class RazorpayService {
     required int amountPaise,
     required String name,
     required String description,
-    required String contactPhone,
+    String? contactPhone,
     PaymentSuccessCallback? onSuccess,
     PaymentErrorCallback? onError,
   }) {
@@ -35,13 +35,17 @@ class RazorpayService {
     _razorpay.on(Razorpay.EVENT_PAYMENT_ERROR, _handleError);
     _razorpay.on(Razorpay.EVENT_EXTERNAL_WALLET, _handleExternalWallet);
 
+    final prefill = <String, dynamic>{
+      if (contactPhone != null && contactPhone.isNotEmpty)
+        'contact': contactPhone,
+    };
     final options = {
       'key': Env.razorpayKeyId, // public key id only
       'amount': amountPaise,
       'order_id': orderId, // created by Edge Function create-order
       'name': name,
       'description': description,
-      'prefill': {'contact': contactPhone},
+      'prefill': prefill,
       // UPI-first for India (Phase 1: payment comfort).
       'theme': {'color': '#FF6B35'},
     };

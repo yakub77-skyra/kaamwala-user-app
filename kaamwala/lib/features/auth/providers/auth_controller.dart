@@ -94,7 +94,8 @@ class AuthController extends Notifier<AuthState> {
     unawaited(_registerPushToken());
   }
 
-  Future<void> finishRoleSelection({
+  /// Returns true when onboarding completed; false surfaces an error snackbar.
+  Future<bool> finishRoleSelection({
     required String name,
     required bool asWorker,
     required String city,
@@ -104,13 +105,15 @@ class AuthController extends Notifier<AuthState> {
       role: asWorker ? UserRole.worker : UserRole.client,
       city: city,
     );
-    state = switch (result) {
-      Success(:final data) => AuthState(
+    if (result is Success<UserProfile>) {
+      state = AuthState(
         stage: asWorker ? AppStage.workerApp : AppStage.clientApp,
-        profile: data,
-      ),
-      _ => AuthState(stage: AppStage.roleSelection, profile: state.profile),
-    };
+        profile: result.data,
+      );
+      unawaited(_registerPushToken());
+      return true;
+    }
+    return false;
   }
 
   Future<void> signOut() async {
@@ -127,6 +130,19 @@ class AuthController extends Notifier<AuthState> {
       return true;
     }
     return false;
+  }
+
+  /// Edit name/city from Settings. Returns null on success, else an error
+  /// message for the UI.
+  Future<String?> updateDetails({String? name, String? city}) async {
+    final result = await _repo.updateDetails(name: name, city: city);
+    switch (result) {
+      case Success(:final data):
+        state = AuthState(stage: state.stage, profile: data);
+        return null;
+      case Error(:final failure):
+        return failure.message;
+    }
   }
 }
 

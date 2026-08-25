@@ -1,10 +1,15 @@
 /// go_router navigation map - Phase 3 section 6.
+///
+/// Tab shells use StatefulShellRoute.indexedStack so every tab keeps its
+/// own navigator + scroll state: switching tabs and coming back restores
+/// exactly where you were, and system back pops inside the tab.
 library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:kaamwala/core/theme/app_theme.dart';
 import 'package:kaamwala/features/admin/screens/admin_queue_screen.dart';
 import 'package:kaamwala/features/auth/providers/auth_controller.dart';
 import 'package:kaamwala/features/auth/screens/login_screen.dart';
@@ -81,17 +86,39 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(path: '/admin', builder: (_, _) => const AdminQueueScreen()),
 
-      // CLIENT
-      ShellRoute(
-        builder: (context, state, child) => ClientShell(child: child),
-        routes: [
-          GoRoute(path: '/home', builder: (_, _) => const HomeScreen()),
-          GoRoute(path: '/search', builder: (_, _) => const WorkerListScreen()),
-          GoRoute(
-            path: '/bookings',
-            builder: (_, _) => const MyBookingsScreen(),
+      // CLIENT - indexedStack keeps each tab's state alive
+      StatefulShellRoute.indexedStack(
+        builder: (context, state, shell) => ClientShell(shell: shell),
+        branches: [
+          StatefulShellBranch(
+            routes: [
+              GoRoute(path: '/home', builder: (_, _) => const HomeScreen()),
+            ],
           ),
-          GoRoute(path: '/profile', builder: (_, _) => const SettingsScreen()),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/search',
+                builder: (_, _) => const WorkerListScreen(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/bookings',
+                builder: (_, _) => const MyBookingsScreen(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/profile',
+                builder: (_, _) => const SettingsScreen(),
+              ),
+            ],
+          ),
         ],
       ),
       GoRoute(
@@ -126,20 +153,32 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
 
       // WORKER (/w/* requires worker role - guard enforced by redirect above)
-      ShellRoute(
-        builder: (context, state, child) => WorkerShell(child: child),
-        routes: [
-          GoRoute(
-            path: '/w/home',
-            builder: (_, _) => const WorkerDashboardScreen(),
+      StatefulShellRoute.indexedStack(
+        builder: (context, state, shell) => WorkerShell(shell: shell),
+        branches: [
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/w/home',
+                builder: (_, _) => const WorkerDashboardScreen(),
+              ),
+            ],
           ),
-          GoRoute(
-            path: '/w/earnings',
-            builder: (_, _) => const EarningsScreen(),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/w/earnings',
+                builder: (_, _) => const EarningsScreen(),
+              ),
+            ],
           ),
-          GoRoute(
-            path: '/w/profile',
-            builder: (_, _) => const SettingsScreen(),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/w/profile',
+                builder: (_, _) => const SettingsScreen(),
+              ),
+            ],
           ),
         ],
       ),
@@ -178,7 +217,6 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
   void initState() {
     super.initState();
     Future.microtask(() async {
-      await Future<void>.delayed(const Duration(milliseconds: 600));
       if (!mounted) return;
       // firstRun=true -> onboarding; else login (session restore inside).
       await ref.read(authControllerProvider.notifier).restoreSession();
@@ -188,21 +226,90 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: const [
-            Text('🔧', style: TextStyle(fontSize: 72)),
-            SizedBox(height: 12),
-            Text(
-              'KaamWala',
-              style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800),
-            ),
-            Text('"काम वाला"', style: TextStyle(color: Color(0xFF7A7A9D))),
-            SizedBox(height: 24),
-            CircularProgressIndicator(color: Color(0xFFFF6B35)),
-          ],
+      body: DecoratedBox(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [KwColors.primary, KwColors.primaryDark],
+          ),
         ),
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 96,
+                height: 96,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: .18),
+                  borderRadius: BorderRadius.circular(28),
+                ),
+                child: const Icon(
+                  Icons.handyman_rounded,
+                  size: 52,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(height: 20),
+              const Text(
+                'KaamWala',
+                style: TextStyle(
+                  fontSize: 32,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '"काम वाला" • Verified workers, instant booking',
+                style: TextStyle(color: Colors.white.withValues(alpha: .85)),
+              ),
+              const SizedBox(height: 36),
+              const SizedBox(
+                width: 28,
+                height: 28,
+                child: CircularProgressIndicator(
+                  color: Colors.white,
+                  strokeWidth: 2.5,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Shared scaffold chrome for an indexed-stack tab shell.
+/// Back pops within the active tab; tab switches preserve state.
+class _TabShell extends StatelessWidget {
+  const _TabShell({required this.shell, required this.items});
+
+  final StatefulNavigationShell shell;
+  final List<({IconData icon, IconData selectedIcon, String label})> items;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: shell,
+      extendBody: false,
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: shell.currentIndex,
+        onDestinationSelected: (i) => shell.goBranch(
+          i,
+          // A second tap on the current tab pops it back to its root.
+          initialLocation: i == shell.currentIndex,
+        ),
+        destinations: [
+          for (final it in items)
+            NavigationDestination(
+              icon: Icon(it.icon),
+              selectedIcon: Icon(it.selectedIcon),
+              label: it.label,
+            ),
+        ],
       ),
     );
   }
@@ -210,83 +317,65 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
 
 /// Client bottom-nav shell: Home / Search / My Bookings / Profile.
 class ClientShell extends StatelessWidget {
-  const ClientShell({super.key, required this.child});
-  final Widget child;
-
-  static int _index(String loc) {
-    if (loc.startsWith('/search')) return 1;
-    if (loc.startsWith('/bookings')) return 2;
-    if (loc.startsWith('/profile')) return 3;
-    return 0;
-  }
+  const ClientShell({super.key, required this.shell});
+  final StatefulNavigationShell shell;
 
   @override
   Widget build(BuildContext context) {
-    final loc = GoRouterState.of(context).matchedLocation;
-    return Scaffold(
-      body: child,
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _index(loc),
-        onDestinationSelected: (i) => context.go(
-          ['/', '/', '/', '/', '/'][i] == '/'
-              ? ['/home', '/search', '/bookings', '/profile'][i]
-              : '/home',
+    return _TabShell(
+      shell: shell,
+      items: const [
+        (
+          icon: Icons.home_outlined,
+          selectedIcon: Icons.home_rounded,
+          label: 'Home',
         ),
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.home_outlined),
-            selectedIcon: Icon(Icons.home),
-            label: 'Home',
-          ),
-          NavigationDestination(icon: Icon(Icons.search), label: 'Search'),
-          NavigationDestination(
-            icon: Icon(Icons.list_alt_outlined),
-            selectedIcon: Icon(Icons.list_alt),
-            label: 'Bookings',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.person_outline),
-            selectedIcon: Icon(Icons.person),
-            label: 'Profile',
-          ),
-        ],
-      ),
+        (
+          icon: Icons.search_rounded,
+          selectedIcon: Icons.search_rounded,
+          label: 'Search',
+        ),
+        (
+          icon: Icons.receipt_long_outlined,
+          selectedIcon: Icons.receipt_long_rounded,
+          label: 'Bookings',
+        ),
+        (
+          icon: Icons.person_outline_rounded,
+          selectedIcon: Icons.person_rounded,
+          label: 'Profile',
+        ),
+      ],
     );
   }
 }
 
 /// Worker bottom-nav shell: होम / कमाई / प्रोफ़ाइल.
 class WorkerShell extends StatelessWidget {
-  const WorkerShell({super.key, required this.child});
-  final Widget child;
-
-  static int _index(String loc) {
-    if (loc.startsWith('/w/earnings')) return 1;
-    if (loc.startsWith('/w/profile')) return 2;
-    return 0;
-  }
+  const WorkerShell({super.key, required this.shell});
+  final StatefulNavigationShell shell;
 
   @override
   Widget build(BuildContext context) {
-    final loc = GoRouterState.of(context).matchedLocation;
-    return Scaffold(
-      body: child,
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _index(loc),
-        onDestinationSelected: (i) =>
-            context.go(['/w/home', '/w/earnings', '/w/profile'][i]),
-        destinations: const [
-          NavigationDestination(icon: Icon(Icons.home_outlined), label: 'होम'),
-          NavigationDestination(
-            icon: Icon(Icons.currency_rupee_outlined),
-            label: 'कमाई',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.person_outline),
-            label: 'प्रोफ़ाइल',
-          ),
-        ],
-      ),
+    return _TabShell(
+      shell: shell,
+      items: const [
+        (
+          icon: Icons.home_outlined,
+          selectedIcon: Icons.home_rounded,
+          label: 'होम',
+        ),
+        (
+          icon: Icons.currency_rupee_outlined,
+          selectedIcon: Icons.currency_rupee_rounded,
+          label: 'कमाई',
+        ),
+        (
+          icon: Icons.person_outline_rounded,
+          selectedIcon: Icons.person_rounded,
+          label: 'प्रोफ़ाइल',
+        ),
+      ],
     );
   }
 }

@@ -23,6 +23,7 @@ class Worker {
     this.approvalStatus = ApprovalStatus.pending,
     this.rejectionReason,
     this.photoUrl,
+    this.phone,
     this.portfolioUrls = const [],
   });
 
@@ -45,6 +46,9 @@ class Worker {
   final String? rejectionReason;
   final String? photoUrl;
 
+  /// Shown only on the worker's own profile page for tap-to-call.
+  final String? phone;
+
   /// Max 5 in MVP (CS-05).
   final List<String> portfolioUrls;
 
@@ -60,6 +64,7 @@ class Worker {
       photoUrl: user is Map<String, dynamic>
           ? user['photo_url'] as String?
           : null,
+      phone: user is Map<String, dynamic> ? user['phone'] as String? : null,
       city: (map['city'] ?? '') as String,
       area: (map['area'] ?? '') as String,
       bio: (map['bio'] ?? '') as String,

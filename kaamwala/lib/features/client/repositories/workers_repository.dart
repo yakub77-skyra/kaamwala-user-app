@@ -23,7 +23,7 @@ class WorkersRepository {
     try {
       var query = SupabaseService.client
           .from('workers')
-          .select('*, users(name, photo_url)')
+          .select('*, users(name, photo_url, phone)')
           .eq('category', category.dbValue)
           .eq('approval_status', 'approved');
       if (city != null && city.isNotEmpty) {
@@ -49,7 +49,7 @@ class WorkersRepository {
     try {
       var query = SupabaseService.client
           .from('workers')
-          .select('*, users(name, photo_url)')
+          .select('*, users(name, photo_url, phone)')
           .eq('approval_status', 'approved')
           .eq('is_available', true);
       if (city != null && city.isNotEmpty) {
@@ -88,7 +88,7 @@ class WorkersRepository {
     try {
       final row = await SupabaseService.client
           .from('workers')
-          .select('*, users(name, photo_url)')
+          .select('*, users(name, photo_url, phone)')
           .eq('id', id)
           .maybeSingle();
       if (row == null) return const Error(NotFoundFailure());
