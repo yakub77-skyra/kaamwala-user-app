@@ -32,6 +32,42 @@ import 'package:kaamwala/features/worker/screens/worker_screens.dart';
 /// Global navigator key - lets FCM taps deep-link from outside widgets.
 final rootNavigatorKey = GlobalKey<NavigatorState>();
 
+/// Pure routing policy per auth stage (table-driven tested in
+/// `test/router_redirect_test.dart`). Returns null to allow [loc], else the
+/// location to redirect to.
+String? appRedirect(AppStage stage, String loc) {
+  switch (stage) {
+    case AppStage.loading:
+    case AppStage.startupError:
+      return '/';
+    case AppStage.onboarding:
+      return loc == '/onboarding' ? null : '/onboarding';
+    case AppStage.login:
+      if (loc.startsWith('/login')) return null;
+      return '/login';
+    case AppStage.roleSelection:
+      return loc == '/role' ? null : '/role';
+    case AppStage.clientApp:
+      if (loc == '/' ||
+          loc.startsWith('/login') ||
+          loc == '/role' ||
+          loc == '/onboarding' ||
+          loc.startsWith('/w/')) {
+        return '/home';
+      }
+      return null;
+    case AppStage.workerApp:
+      if (loc == '/' ||
+          loc.startsWith('/login') ||
+          loc == '/role' ||
+          loc == '/onboarding' ||
+          !loc.startsWith('/w/')) {
+        return '/w/home';
+      }
+      return null;
+  }
+}
+
 final routerProvider = Provider<GoRouter>((ref) {
   final auth = ref.watch(authControllerProvider);
 
@@ -39,39 +75,8 @@ final routerProvider = Provider<GoRouter>((ref) {
     navigatorKey: rootNavigatorKey,
     initialLocation: '/',
     debugLogDiagnostics: false,
-    redirect: (context, state) {
-      final loc = state.matchedLocation;
-      switch (auth.stage) {
-        case AppStage.loading:
-        case AppStage.startupError:
-          return '/';
-        case AppStage.onboarding:
-          return loc == '/onboarding' ? null : '/onboarding';
-        case AppStage.login:
-          if (loc.startsWith('/login')) return null;
-          return '/login';
-        case AppStage.roleSelection:
-          return loc == '/role' ? null : '/role';
-        case AppStage.clientApp:
-          if (loc == '/' ||
-              loc.startsWith('/login') ||
-              loc == '/role' ||
-              loc == '/onboarding' ||
-              loc.startsWith('/w/')) {
-            return '/home';
-          }
-          return null;
-        case AppStage.workerApp:
-          if (loc == '/' ||
-              loc.startsWith('/login') ||
-              loc == '/role' ||
-              loc == '/onboarding' ||
-              !loc.startsWith('/w/')) {
-            return '/w/home';
-          }
-          return null;
-      }
-    },
+    redirect: (context, state) =>
+        appRedirect(auth.stage, state.matchedLocation),
     routes: [
       GoRoute(path: '/', builder: (context, state) => const SplashScreen()),
       GoRoute(path: '/onboarding', builder: (_, _) => const OnboardingScreen()),

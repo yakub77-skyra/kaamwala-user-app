@@ -7,6 +7,7 @@
 /// FcmService OWNS the single Firebase.initializeApp() call; this service
 /// piggybacks on it so the default app is never initialized twice.
 library;
+
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';

@@ -40,11 +40,17 @@ enum BookingStatus {
   final String emoji;
 
   static BookingStatus fromDb(String value) => BookingStatus.values.firstWhere(
-    (s) => s.name == value,
+    (s) => s.dbValue == value,
     orElse: () => BookingStatus.pending,
   );
 
-  String get dbValue => name;
+  /// Wire format MUST match the bookings_guard trigger literals
+  /// ('in_progress', not Dart's camelCase 'inProgress') - regression-pinned
+  /// by test/booking_model_test.dart.
+  String get dbValue => switch (this) {
+    BookingStatus.inProgress => 'in_progress',
+    final s => s.name,
+  };
 
   bool get isActive =>
       this != BookingStatus.completed &&

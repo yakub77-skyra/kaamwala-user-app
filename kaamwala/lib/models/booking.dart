@@ -67,10 +67,10 @@ class Booking {
     final workerMap = map['workers'] as Map?;
     final workerUser = workerMap?['users'] as Map?;
     return Booking(
-      id: map['id'] as String,
+      id: (map['id'] ?? '') as String,
       ref: (map['ref'] ?? '') as String,
-      clientId: map['client_id'] as String,
-      workerId: map['worker_id'] as String,
+      clientId: (map['client_id'] ?? '') as String,
+      workerId: (map['worker_id'] ?? '') as String,
       category: ServiceCategory.fromDb(map['category'] as String? ?? 'plumber'),
       description: (map['description'] ?? '') as String,
       serviceDate: DateTime.tryParse((map['service_date'] ?? '') as String),
