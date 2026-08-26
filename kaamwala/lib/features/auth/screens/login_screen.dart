@@ -60,7 +60,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   gradient: const LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
-                    colors: [KwColors.primary, KwColors.primaryDark],
+                    colors: KwColors.brandGradient,
                   ),
                   borderRadius: BorderRadius.circular(26),
                   boxShadow: [

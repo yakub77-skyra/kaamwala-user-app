@@ -239,7 +239,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [KwColors.primary, KwColors.primaryDark],
+            colors: KwColors.brandGradient,
           ),
         ),
         child: Center(

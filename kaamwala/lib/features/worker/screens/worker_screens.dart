@@ -741,7 +741,7 @@ class EarningsScreen extends ConsumerWidget {
                   gradient: const LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
-                    colors: [KwColors.primary, KwColors.primaryDark],
+                    colors: KwColors.brandGradient,
                   ),
                   borderRadius: BorderRadius.circular(KwRadius.card),
                 ),
