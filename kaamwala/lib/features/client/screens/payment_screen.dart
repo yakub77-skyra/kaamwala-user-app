@@ -1,4 +1,4 @@
-/// Payment screen (Phase 3 C9) - opens native Razorpay checkout.
+/// Payment screen (UI 2.0) - amount hero, trust badges, KwButton states.
 /// Order created by Edge Function; client only gets order_id + key_id.
 library;
 
@@ -10,6 +10,8 @@ import 'package:go_router/go_router.dart';
 
 import 'package:kaamwala/core/error/failure.dart';
 import 'package:kaamwala/core/theme/app_theme.dart';
+import 'package:kaamwala/core/ui/kw_button.dart';
+import 'package:kaamwala/core/ui/kw_icon_well.dart';
 import 'package:kaamwala/features/client/providers/client_providers.dart';
 import 'package:kaamwala/services/analytics_service.dart';
 import 'package:kaamwala/services/razorpay_service.dart';
@@ -109,116 +111,105 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
     super.dispose();
   }
 
-  String get _statusText => switch (_stage) {
-    PayStage.creating => 'Creating order…',
-    PayStage.checkout => 'Ready to pay',
-    PayStage.processing => 'Processing…',
-    PayStage.success => 'Payment successful',
-  };
-
   @override
   Widget build(BuildContext context) {
+    final rupees = _amountPaise ~/ 100;
+    final busy = _stage == PayStage.creating || _stage == PayStage.processing;
     return Scaffold(
       appBar: AppBar(title: const Text('Payment')),
       bottomNavigationBar: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(KwSpacing.lg),
           child: _stage == PayStage.success
-              ? ElevatedButton.icon(
-                  icon: const Icon(Icons.receipt_long_rounded),
+              ? KwButton(
+                  label: 'View My Bookings',
                   onPressed: () => context.go('/bookings'),
-                  label: const Text('View My Bookings'),
+                  icon: Icons.receipt_long_rounded,
                 )
-              : ElevatedButton.icon(
-                  icon:
-                      _stage == PayStage.processing ||
-                          _stage == PayStage.creating
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : const Icon(Icons.currency_rupee_rounded),
+              : KwButton(
+                  label: busy
+                      ? (_stage == PayStage.creating
+                            ? 'Creating order…'
+                            : 'Processing…')
+                      : 'Pay ₹$rupees',
                   onPressed:
                       (_razorpayOrderId == null ||
                           _stage == PayStage.processing)
                       ? null
                       : _openCheckout,
-                  label: Text(
-                    _stage == PayStage.checkout
-                        ? 'Pay ₹${_amountPaise ~/ 100}'
-                        : _statusText,
-                  ),
+                  loading: busy,
+                  icon: Icons.currency_rupee_rounded,
                 ),
         ),
       ),
       body: ListView(
         padding: const EdgeInsets.all(KwSpacing.lg),
         children: [
+          const SizedBox(height: KwSpacing.md),
+          // ---------- amount hero ----------
+          Center(
+            child: Column(
+              children: [
+                Text(
+                  'BOOKING FEE',
+                  style: Theme.of(context).textTheme.labelSmall
+                      ?.copyWith(color: KwColors.muted, letterSpacing: 1.2),
+                ),
+                const SizedBox(height: KwSpacing.sm),
+                Text(
+                  '₹$rupees',
+                  style: Theme.of(context).textTheme.displaySmall,
+                ),
+                const SizedBox(height: KwSpacing.sm),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(
+                      Icons.lock_rounded,
+                      size: 15,
+                      color: KwColors.green,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Secured by Razorpay',
+                      style: Theme.of(context).textTheme.labelMedium
+                          ?.copyWith(color: KwColors.muted),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: KwSpacing.xl),
+          // ---------- what you get ----------
           Card(
             margin: EdgeInsets.zero,
             child: Padding(
               padding: const EdgeInsets.all(KwSpacing.lg),
               child: Column(
                 children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text('Booking fee'),
-                      Text(
-                        '₹${_amountPaise ~/ 100}',
-                        style: Theme.of(context).textTheme.titleMedium
-                            ?.copyWith(fontWeight: FontWeight.w800),
-                      ),
-                    ],
+                  _PerkRow(
+                    icon: Icons.event_available_rounded,
+                    tint: KwColors.blueLight,
+                    fg: KwColors.blue,
+                    title: 'Priority booking with your worker',
                   ),
-                  const Divider(height: KwSpacing.lg),
-                  Row(
-                    children: [
-                      Icon(Icons.lock_rounded, size: 15, color: KwColors.green),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: Text(
-                          'Secured by Razorpay • UPI, cards & netbanking',
-                          style: Theme.of(context).textTheme.labelSmall
-                              ?.copyWith(color: KwColors.muted),
-                        ),
-                      ),
-                    ],
+                  const SizedBox(height: KwSpacing.md),
+                  _PerkRow(
+                    icon: Icons.undo_rounded,
+                    tint: KwColors.primaryLight,
+                    fg: KwColors.primary,
+                    title: 'Full refund if you cancel before acceptance',
+                  ),
+                  const SizedBox(height: KwSpacing.md),
+                  _PerkRow(
+                    icon: Icons.verified_user_rounded,
+                    tint: KwColors.greenLight,
+                    fg: KwColors.green,
+                    title: 'Money held until you confirm the work',
                   ),
                 ],
               ),
-            ),
-          ),
-          const SizedBox(height: KwSpacing.md),
-          Card(
-            margin: EdgeInsets.zero,
-            child: ListTile(
-              leading: Container(
-                width: 38,
-                height: 38,
-                decoration: BoxDecoration(
-                  color: KwColors.blueLight,
-                  borderRadius: BorderRadius.circular(11),
-                ),
-                child: const Icon(
-                  Icons.undo_rounded,
-                  size: 19,
-                  color: KwColors.blue,
-                ),
-              ),
-              title: const Text(
-                'Full refund if you cancel',
-                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
-              ),
-              subtitle: Text(
-                'Cancel any time before the worker accepts — money returns to your source automatically.',
-                style: TextStyle(fontSize: 12, height: 1.35),
-              ),
-              isThreeLine: true,
             ),
           ),
           if (_error != null) ...[
@@ -230,16 +221,44 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
                   ?.copyWith(color: KwColors.red),
             ),
           ],
-          const SizedBox(height: KwSpacing.xl),
+          const SizedBox(height: KwSpacing.lg),
           Center(
             child: Text(
-              _statusText,
-              style: Theme.of(context).textTheme.labelLarge
+              'UPI • Cards • Netbanking via Razorpay',
+              style: Theme.of(context).textTheme.labelSmall
                   ?.copyWith(color: KwColors.muted),
             ),
           ),
+          const SizedBox(height: KwSpacing.xl),
         ],
       ),
+    );
+  }
+}
+
+class _PerkRow extends StatelessWidget {
+  const _PerkRow({
+    required this.icon,
+    required this.tint,
+    required this.fg,
+    required this.title,
+  });
+
+  final IconData icon;
+  final Color tint;
+  final Color fg;
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        KwIconWell(icon: icon, size: 38, background: tint, foreground: fg),
+        const SizedBox(width: KwSpacing.md),
+        Expanded(
+          child: Text(title, style: Theme.of(context).textTheme.bodyMedium),
+        ),
+      ],
     );
   }
 }

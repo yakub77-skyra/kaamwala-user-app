@@ -11,6 +11,7 @@ import 'package:intl/intl.dart';
 import 'package:kaamwala/core/constants/app_constants.dart';
 import 'package:kaamwala/core/error/failure.dart';
 import 'package:kaamwala/core/theme/app_theme.dart';
+import 'package:kaamwala/core/ui/kw_button.dart';
 import 'package:kaamwala/features/client/providers/client_providers.dart';
 import 'package:kaamwala/services/analytics_service.dart';
 import 'package:kaamwala/services/supabase_service.dart';
@@ -121,8 +122,7 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
             children: [
               Text(
                 'What work do you need?',
-                style: Theme.of(context).textTheme.titleSmall
-                    ?.copyWith(fontWeight: FontWeight.w800),
+                style: Theme.of(context).textTheme.titleSmall,
               ),
               const SizedBox(height: KwSpacing.sm),
               TextFormField(
@@ -138,11 +138,7 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
                 ),
               ),
               const SizedBox(height: KwSpacing.md),
-              Text(
-                'When?',
-                style: Theme.of(context).textTheme.titleSmall
-                    ?.copyWith(fontWeight: FontWeight.w800),
-              ),
+              Text('When?', style: Theme.of(context).textTheme.titleSmall),
               const SizedBox(height: KwSpacing.sm),
               Row(
                 children: [
@@ -170,11 +166,7 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
                 ],
               ),
               const SizedBox(height: KwSpacing.md),
-              Text(
-                'Where?',
-                style: Theme.of(context).textTheme.titleSmall
-                    ?.copyWith(fontWeight: FontWeight.w800),
-              ),
+              Text('Where?', style: Theme.of(context).textTheme.titleSmall),
               const SizedBox(height: KwSpacing.sm),
               TextFormField(
                 controller: _addrCtrl,
@@ -198,10 +190,14 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text('Job estimate'),
+                          Text(
+                            'Job estimate',
+                            style: Theme.of(context).textTheme.bodyMedium
+                                ?.copyWith(color: KwColors.muted),
+                          ),
                           Text(
                             '₹${_estMin.toStringAsFixed(0)} – ₹${_estMax.toStringAsFixed(0)}',
-                            style: const TextStyle(fontWeight: FontWeight.w800),
+                            style: Theme.of(context).textTheme.titleMedium,
                           ),
                         ],
                       ),
@@ -209,16 +205,22 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text('Booking fee (refundable on cancel)'),
+                          Text(
+                            'Booking fee (refundable)',
+                            style: Theme.of(context).textTheme.bodyMedium
+                                ?.copyWith(color: KwColors.muted),
+                          ),
                           Text(
                             '₹${AppConstants.bookingFeeRupees}',
-                            style: const TextStyle(fontWeight: FontWeight.w800),
+                            style: Theme.of(context).textTheme.titleMedium
+                                ?.copyWith(color: KwColors.primary),
                           ),
                         ],
                       ),
-                      const SizedBox(height: KwSpacing.xs),
+                      const Divider(height: KwSpacing.lg),
                       Text(
-                        'Final price is agreed with the worker before work starts.',
+                        'Final price is agreed with the worker before work '
+                        'starts.',
                         style: Theme.of(context).textTheme.labelSmall
                             ?.copyWith(color: KwColors.muted),
                       ),
@@ -227,23 +229,13 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
                 ),
               ),
               const SizedBox(height: KwSpacing.lg),
-              ElevatedButton.icon(
-                icon: _busy
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      )
-                    : const Icon(Icons.currency_rupee_rounded, size: 19),
-                label: Text(
-                  _busy
-                      ? 'Creating booking…'
-                      : 'Pay ₹${AppConstants.bookingFeeRupees} & Book',
-                ),
+              KwButton(
+                label: _busy
+                    ? 'Creating booking…'
+                    : 'Pay ₹${AppConstants.bookingFeeRupees} & Book',
                 onPressed: _busy ? null : _submit,
+                loading: _busy,
+                icon: Icons.currency_rupee_rounded,
               ),
               const SizedBox(height: KwSpacing.sm),
               Center(

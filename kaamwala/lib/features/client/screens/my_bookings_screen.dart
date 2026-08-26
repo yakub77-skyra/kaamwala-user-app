@@ -11,6 +11,7 @@ import 'dart:async';
 import 'package:kaamwala/core/constants/app_constants.dart';
 import 'package:kaamwala/core/error/failure.dart';
 import 'package:kaamwala/core/theme/app_theme.dart';
+import 'package:kaamwala/core/ui/core_ui.dart';
 import 'package:kaamwala/features/client/providers/client_providers.dart';
 import 'package:kaamwala/features/shared/widgets/common_widgets.dart';
 import 'package:kaamwala/models/booking.dart';
@@ -71,13 +72,16 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen> {
           ),
           Expanded(
             child: bookings.when(
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, _) => EmptyState(
-                emoji: '⚠️',
+              loading: () => const Padding(
+                padding: EdgeInsets.all(KwSpacing.lg),
+                child: KwSkeletonList(),
+              ),
+              error: (e, _) => KwEmptyState(
+                illustration: KwIllustration.offline,
                 title: 'Could not load bookings',
                 subtitle: 'Check your connection and try again.',
-                ctaLabel: 'Retry',
-                onCta: () => ref.read(myBookingsProvider.notifier).refresh(),
+                actionLabel: 'Retry',
+                onAction: () => ref.read(myBookingsProvider.notifier).refresh(),
               ),
               data: (list) {
                 final filtered = switch (_filter) {
@@ -198,8 +202,7 @@ class _BookingCard extends StatelessWidget {
                               : b.workerName,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context).textTheme.titleSmall
-                              ?.copyWith(fontWeight: FontWeight.w800),
+                          style: Theme.of(context).textTheme.titleSmall,
                         ),
                         Text(
                           '${b.category.labelEn} • ${b.ref}',
@@ -394,8 +397,10 @@ class BookingDetailScreen extends ConsumerWidget {
           : null,
       body: bookings.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (_, _) =>
-            const EmptyState(emoji: '⚠️', title: 'Could not load this booking'),
+        error: (_, _) => const KwEmptyState(
+          illustration: KwIllustration.bookings,
+          title: 'Could not load this booking',
+        ),
         data: (list) {
           final b = list.where((x) => x.id == bookingId).firstOrNull;
           if (b == null) {
@@ -426,8 +431,7 @@ class BookingDetailScreen extends ConsumerWidget {
                                     overflow: TextOverflow.ellipsis,
                                     style: Theme.of(context)
                                         .textTheme
-                                        .titleSmall
-                                        ?.copyWith(fontWeight: FontWeight.w800),
+                                        .titleSmall,
                                   ),
                                 ),
                                 const SizedBox(width: 4),
@@ -477,8 +481,7 @@ class BookingDetailScreen extends ConsumerWidget {
                         children: [
                           Text(
                             'Job status',
-                            style: Theme.of(context).textTheme.titleSmall
-                                ?.copyWith(fontWeight: FontWeight.w800),
+                            style: Theme.of(context).textTheme.titleSmall,
                           ),
                           StatusPill(status: b.status),
                         ],
@@ -564,7 +567,7 @@ class BookingDetailScreen extends ConsumerWidget {
                       ),
                       const SizedBox(width: 6),
                       Text(
-                        'Work confirmed — payout released to worker 🎉',
+                        'Work confirmed — payout released to worker',
                         style: Theme.of(context).textTheme.bodySmall
                             ?.copyWith(color: KwColors.green),
                       ),
