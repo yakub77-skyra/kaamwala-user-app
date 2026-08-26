@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 160" fill="none">
+  <ellipse cx="100" cy="134" rx="58" ry="10" fill="#F3F1ED"/>
+  <!-- shield -->
+  <path d="M100 26l48 18v34c0 30-21 49-48 58-27-9-48-28-48-58V44l48-18Z" fill="#FFF1EA" stroke="#0F172A" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M100 38l36 13v27c0 23-16 38-36 45-20-7-36-22-36-45V51l36-13Z" fill="#FFFFFF"/>
+  <!-- hourglass -->
+  <path d="M88 60h24l-9 15v6l9 15H88l9-15v-6l-9-15Z" stroke="#0F172A" stroke-width="3" stroke-linejoin="round"/>
+  <circle cx="100" cy="72" r="2.5" fill="#F4511E"/>
+  <circle cx="100" cy="90" r="2.5" fill="#D9DCE4"/>
+  <!-- pending dots -->
+  <circle cx="76" cy="106" r="4" fill="#D9DCE4"/>
+  <circle cx="100" cy="108" r="4" fill="#F4511E"/>
+  <circle cx="124" cy="106" r="4" fill="#D9DCE4"/>
+</svg>

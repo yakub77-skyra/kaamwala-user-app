@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 160" fill="none">
+  <ellipse cx="100" cy="134" rx="62" ry="10" fill="#F3F1ED"/>
+  <!-- toolbox -->
+  <rect x="44" y="70" width="112" height="56" rx="12" fill="#FFFFFF" stroke="#0F172A" stroke-width="3"/>
+  <path d="M78 70v-10a10 10 0 0 1 10-10h24a10 10 0 0 1 10 10v10" stroke="#0F172A" stroke-width="3"/>
+  <rect x="44" y="86" width="112" height="8" fill="#FFF1EA"/>
+  <rect x="92" y="82" width="16" height="14" rx="4" stroke="#0F172A" stroke-width="3"/>
+  <!-- wrench accent -->
+  <path d="M138 46c8-8 20-6 25 2l-12 12 5 5 12-12c6 8 3 19-5 24-7 5-17 3-22-4s-4-20-3-27Z" fill="#F4511E"/>
+  <!-- notification dot -->
+  <circle cx="156" cy="66" r="9" fill="#16A34A" stroke="#FFFFFF" stroke-width="3"/>
+</svg>

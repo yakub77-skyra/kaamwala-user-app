@@ -199,17 +199,33 @@ class SectionHeader extends StatelessWidget {
           ),
         ),
         if (actionLabel != null && onAction != null)
-          GestureDetector(
+          InkWell(
             onTap: onAction,
-            behavior: HitTestBehavior.opaque,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
-              child: Text(
-                '$actionLabel ›',
-                style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                  color: KwColors.primary,
-                  fontWeight: FontWeight.w700,
-                ),
+            borderRadius: BorderRadius.circular(KwRadius.sm),
+            child: Container(
+              constraints: const BoxConstraints(
+                minWidth: KwSizes.minTouchTarget,
+                minHeight: KwSizes.minTouchTarget,
+              ),
+              alignment: Alignment.centerRight,
+              padding: const EdgeInsets.symmetric(horizontal: KwSpacing.sm),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    actionLabel!,
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      color: KwColors.primary,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(width: 2),
+                  const Icon(
+                    Icons.chevron_right_rounded,
+                    size: 18,
+                    color: KwColors.primary,
+                  ),
+                ],
               ),
             ),
           ),

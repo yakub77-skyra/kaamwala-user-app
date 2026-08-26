@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 160" fill="none">
+  <ellipse cx="100" cy="134" rx="60" ry="10" fill="#F3F1ED"/>
+  <!-- receipt -->
+  <path d="M56 30h74a8 8 0 0 1 8 8v88l-14-8-14 8-14-8-14 8-14-8-14 8V38a8 8 0 0 1 8-8Z" fill="#FFFFFF" stroke="#0F172A" stroke-width="3" stroke-linejoin="round"/>
+  <rect x="72" y="50" width="42" height="6" rx="3" fill="#D9DCE4"/>
+  <rect x="72" y="64" width="56" height="6" rx="3" fill="#E7E9EF"/>
+  <rect x="72" y="78" width="36" height="6" rx="3" fill="#E7E9EF"/>
+  <rect x="72" y="96" width="20" height="12" rx="6" fill="#FFF1EA"/>
+  <!-- rupee coin -->
+  <circle cx="138" cy="104" r="22" fill="#16A34A"/>
+  <circle cx="138" cy="104" r="22" stroke="#0F172A" stroke-width="3"/>
+  <path d="M131 96h14M131 102h14M133 96c6 0 9 3 9 7s-3 8-9 8l11 8" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

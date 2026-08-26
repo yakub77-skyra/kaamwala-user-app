@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 160" fill="none">
+  <!-- backdrop blob -->
+  <ellipse cx="100" cy="132" rx="62" ry="10" fill="#F3F1ED"/>
+  <rect x="38" y="38" width="86" height="66" rx="12" fill="#F3F1ED"/>
+  <rect x="52" y="52" width="86" height="66" rx="12" fill="#FFFFFF" stroke="#0F172A" stroke-width="3"/>
+  <circle cx="66" cy="68" r="6" fill="#F4511E"/>
+  <rect x="78" y="64" width="44" height="5" rx="2.5" fill="#D9DCE4"/>
+  <rect x="78" y="74" width="32" height="5" rx="2.5" fill="#E7E9EF"/>
+  <rect x="64" y="92" width="58" height="5" rx="2.5" fill="#E7E9EF"/>
+  <!-- magnifier -->
+  <circle cx="128" cy="92" r="26" fill="#FFF1EA" stroke="#0F172A" stroke-width="3"/>
+  <path d="M118 84a13 13 0 0 1 18 -2" stroke="#F4511E" stroke-width="3" stroke-linecap="round"/>
+  <line x1="147" y1="111" x2="162" y2="126" stroke="#0F172A" stroke-width="5" stroke-linecap="round"/>
+  <circle cx="128" cy="92" r="26" stroke="#0F172A" stroke-width="3"/>
+</svg>

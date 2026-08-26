@@ -78,6 +78,10 @@ flutter:
   # the material Icons class.
   uses-material-design: true
 
+  # UI 2.0 brand illustrations (see lib/core/ui/kw_empty_state.dart).
+  assets:
+    - assets/illustrations/
+
   # To add assets to your application, add an assets section, like this:
   # assets:
   #   - images/a_dot_burr.jpeg
