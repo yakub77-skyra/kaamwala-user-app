@@ -5,14 +5,13 @@ import 'package:flutter/material.dart';
 
 /// 4 launch categories only - Phase 1 lesson: not all 12.
 enum ServiceCategory {
-  plumber('Plumber', 'प्लंबर', Icons.plumbing),
-  electrician('Electrician', 'इलेक्ट्रिशियन', Icons.electrical_services),
-  painter('Painter', 'पेंटर', Icons.format_paint),
-  carpenter('Carpenter', 'बढ़ई', Icons.carpenter);
+  plumber('Plumber', Icons.plumbing),
+  electrician('Electrician', Icons.electrical_services),
+  painter('Painter', Icons.format_paint),
+  carpenter('Carpenter', Icons.carpenter);
 
-  const ServiceCategory(this.labelEn, this.labelHi, this.icon);
+  const ServiceCategory(this.labelEn, this.icon);
   final String labelEn;
-  final String labelHi;
   final IconData icon;
 
   static ServiceCategory fromDb(String value) =>

@@ -11,6 +11,8 @@ import 'dart:async';
 import 'package:kaamwala/core/constants/app_constants.dart';
 import 'package:kaamwala/core/error/failure.dart';
 import 'package:kaamwala/core/theme/app_theme.dart';
+import 'package:kaamwala/core/ui/kw_empty_state.dart';
+import 'package:kaamwala/core/ui/kw_icon_well.dart';
 import 'package:kaamwala/features/shared/widgets/common_widgets.dart';
 import 'package:kaamwala/features/worker/providers/worker_providers.dart';
 import 'package:kaamwala/features/worker/repositories/worker_repository.dart';
@@ -24,33 +26,12 @@ class UnderReviewScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(KwSpacing.xxl),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: const [
-              Text('⏳', style: TextStyle(fontSize: 72)),
-              SizedBox(height: KwSpacing.lg),
-              Text(
-                'आपकी प्रोफ़ाइल जांच के अधीन है',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
-              ),
-              SizedBox(height: KwSpacing.sm),
-              Text(
-                '(Profile under review)',
-                style: TextStyle(color: KwColors.muted),
-              ),
-              SizedBox(height: KwSpacing.md),
-              Text(
-                'We verify your Aadhar within 24 hours.\n'
-                'You\'ll get a message when approved. ✅',
-                textAlign: TextAlign.center,
-              ),
-            ],
-          ),
-        ),
+      body: KwEmptyState(
+        illustration: KwIllustration.review,
+        title: 'Your profile is under review',
+        subtitle:
+            'We verify your Aadhaar within 24 hours. You will get a '
+            'notification as soon as you are approved.',
       ),
     );
   }
@@ -99,7 +80,7 @@ class _WorkerDashboardScreenState extends ConsumerState<WorkerDashboardScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(firstName.isEmpty ? 'नमस्ते 🙏' : 'नमस्ते, $firstName 🙏'),
+        title: Text(firstName.isEmpty ? 'Welcome' : 'Namaste, $firstName'),
         actions: [
           IconButton(
             onPressed: () => context.go('/notifications'),
@@ -120,7 +101,7 @@ class _WorkerDashboardScreenState extends ConsumerState<WorkerDashboardScreen> {
                 decoration: BoxDecoration(
                   gradient: _available
                       ? const LinearGradient(
-                          colors: [Color(0xFFE9F9F0), KwColors.surface],
+                          colors: [KwColors.greenLight, KwColors.surface],
                           begin: Alignment.centerLeft,
                           end: Alignment.centerRight,
                         )
@@ -141,9 +122,8 @@ class _WorkerDashboardScreenState extends ConsumerState<WorkerDashboardScreen> {
                     color: _available ? KwColors.green : KwColors.muted,
                   ),
                   title: Text(
-                    'काम के लिए उपलब्ध?',
-                    style: Theme.of(context).textTheme.titleMedium
-                        ?.copyWith(fontWeight: FontWeight.w800),
+                    'Available for work?',
+                    style: Theme.of(context).textTheme.titleMedium,
                   ),
                   subtitle: Text(
                     _available
@@ -162,7 +142,7 @@ class _WorkerDashboardScreenState extends ConsumerState<WorkerDashboardScreen> {
               children: [
                 Expanded(
                   child: _StatCard(
-                    label: 'आज के काम',
+                    label: 'Active jobs',
                     value: '${stats.activeCount}',
                     icon: Icons.construction_rounded,
                     tint: KwColors.blue,
@@ -171,7 +151,7 @@ class _WorkerDashboardScreenState extends ConsumerState<WorkerDashboardScreen> {
                 const SizedBox(width: KwSpacing.md),
                 Expanded(
                   child: _StatCard(
-                    label: 'आज की कमाई',
+                    label: "Today's earning",
                     value: '₹${_money(stats.todayEarning)}',
                     icon: Icons.currency_rupee_rounded,
                     tint: KwColors.green,
@@ -184,14 +164,13 @@ class _WorkerDashboardScreenState extends ConsumerState<WorkerDashboardScreen> {
               children: [
                 Expanded(
                   child: Text(
-                    'नए काम (${newJobs.length})',
-                    style: Theme.of(context).textTheme.titleMedium
-                        ?.copyWith(fontWeight: FontWeight.w700),
+                    'New jobs (${newJobs.length})',
+                    style: Theme.of(context).textTheme.titleMedium,
                   ),
                 ),
                 TextButton(
                   onPressed: () => context.go('/w/jobs'),
-                  child: const Text('सभी देखें ›'),
+                  child: const Text('View all'),
                 ),
               ],
             ),
@@ -199,7 +178,7 @@ class _WorkerDashboardScreenState extends ConsumerState<WorkerDashboardScreen> {
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: KwSpacing.lg),
                 child: Text(
-                  'अभी कोई नया काम नहीं है',
+                  'No new jobs right now',
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.bodySmall
                       ?.copyWith(color: KwColors.muted),
@@ -490,14 +469,21 @@ class JobDetailScreen extends ConsumerWidget {
             children: [
               ListTile(
                 contentPadding: EdgeInsets.zero,
-                leading: const Text('👤', style: TextStyle(fontSize: 24)),
+                leading: const KwIconWell(
+                  icon: Icons.person_rounded,
+                  size: 40,
+                  background: KwColors.fill,
+                  foreground: KwColors.ink,
+                ),
                 title: Text(b.clientName.isEmpty ? 'Client' : b.clientName),
               ),
               ListTile(
                 contentPadding: EdgeInsets.zero,
-                leading: Text(
-                  b.category.labelHi,
-                  style: const TextStyle(fontSize: 22),
+                leading: const KwIconWell(
+                  icon: Icons.construction_rounded,
+                  size: 40,
+                  background: KwColors.primaryLight,
+                  foreground: KwColors.primary,
                 ),
                 title: Text(
                   b.description.isEmpty ? b.category.labelEn : b.description,
@@ -505,12 +491,22 @@ class JobDetailScreen extends ConsumerWidget {
               ),
               ListTile(
                 contentPadding: EdgeInsets.zero,
-                leading: const Text('📍', style: TextStyle(fontSize: 24)),
+                leading: const KwIconWell(
+                  icon: Icons.place_rounded,
+                  size: 40,
+                  background: KwColors.blueLight,
+                  foreground: KwColors.blue,
+                ),
                 title: Text(b.address.isEmpty ? b.ref : b.address),
               ),
               ListTile(
                 contentPadding: EdgeInsets.zero,
-                leading: const Text('📅', style: TextStyle(fontSize: 24)),
+                leading: const KwIconWell(
+                  icon: Icons.event_rounded,
+                  size: 40,
+                  background: KwColors.greenLight,
+                  foreground: KwColors.green,
+                ),
                 title: Text(_whenLine(b)),
               ),
               const Divider(),
@@ -587,10 +583,10 @@ class _ActiveJobScreenState extends ConsumerState<ActiveJobScreen> {
   ];
 
   String _labelFor(BookingStatus next) => switch (next) {
-    BookingStatus.traveling => '🛵 Start Travel',
-    BookingStatus.arrived => '✅ I have Arrived',
-    BookingStatus.inProgress => '🔧 Start Work',
-    BookingStatus.completed => '🎉 Mark Completed',
+    BookingStatus.traveling => 'Start travel',
+    BookingStatus.arrived => 'I have arrived',
+    BookingStatus.inProgress => 'Start work',
+    BookingStatus.completed => 'Mark completed',
     _ => '',
   };
 
@@ -661,7 +657,8 @@ class _ActiveJobScreenState extends ConsumerState<ActiveJobScreen> {
                 Center(
                   child: Text(
                     b.status == BookingStatus.completed
-                        ? 'काम पूरा हुआ 🎉 Client confirmation unlocks your payout.'
+                        ? 'Job completed! Client confirmation unlocks your '
+                              'payout.'
                         : 'Job ${b.status.label.toLowerCase()}',
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.bodyMedium
@@ -716,11 +713,13 @@ class EarningsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final done = ref.watch(completedJobsProvider);
     return Scaffold(
-      appBar: AppBar(title: const Text('कमाई (Earnings)')),
+      appBar: AppBar(title: const Text('Earnings')),
       body: done.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) =>
-            const EmptyState(emoji: '⚠️', title: 'Could not load earnings'),
+        error: (e, _) => const KwEmptyState(
+          illustration: KwIllustration.offline,
+          title: 'Could not load earnings',
+        ),
         data: (list) {
           final now = DateTime.now();
           final monthStart = DateTime(now.year, now.month, 1);
@@ -748,10 +747,10 @@ class EarningsScreen extends ConsumerWidget {
                 child: Column(
                   children: [
                     Text(
-                      'इस महीने (This Month)',
-                      style: TextStyle(
+                      'THIS MONTH',
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
                         color: Colors.white.withValues(alpha: .85),
-                        fontWeight: FontWeight.w600,
+                        letterSpacing: 1.2,
                       ),
                     ),
                     const SizedBox(height: KwSpacing.sm),

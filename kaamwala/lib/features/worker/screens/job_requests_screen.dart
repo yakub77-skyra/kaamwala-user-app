@@ -6,7 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:kaamwala/core/theme/app_theme.dart';
-import 'package:kaamwala/features/shared/widgets/common_widgets.dart';
+import 'package:kaamwala/core/ui/core_ui.dart';
 import 'package:kaamwala/features/worker/providers/worker_providers.dart';
 import 'package:kaamwala/models/booking.dart';
 
@@ -17,19 +17,24 @@ class JobRequestsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final jobs = ref.watch(workerJobsProvider);
     return Scaffold(
-      appBar: AppBar(title: const Text('नए काम (New Jobs)')),
+      appBar: AppBar(title: const Text('New Jobs')),
       body: jobs.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => const EmptyState(
-          emoji: '⚠️',
+        loading: () => const Padding(
+          padding: EdgeInsets.all(KwSpacing.lg),
+          child: KwSkeletonList(),
+        ),
+        error: (e, _) => const KwEmptyState(
+          illustration: KwIllustration.offline,
           title: 'Could not load jobs',
           subtitle: 'Pull to retry.',
         ),
         data: (list) => list.isEmpty
-            ? const EmptyState(
-                emoji: '📭',
+            ? const KwEmptyState(
+                illustration: KwIllustration.jobs,
                 title: 'No new jobs right now',
-                subtitle: 'New requests appear here the moment a client pays the ₹20 fee.',
+                subtitle:
+                    'New requests appear here the moment a client pays the '
+                    '₹20 fee.',
               )
             : RefreshIndicator(
                 onRefresh: () =>
@@ -94,8 +99,6 @@ class _JobRequestCardState extends ConsumerState<_JobRequestCard> {
           children: [
             Row(
               children: [
-                Text(b.category.labelHi, style: const TextStyle(fontSize: 16)),
-                const SizedBox(width: KwSpacing.md),
                 Expanded(
                   child: Text(
                     '${b.category.labelEn} • ${b.description}',

@@ -73,19 +73,13 @@ class _WorkerRegisterScreenState extends State<WorkerRegisterScreen> {
           padding: const EdgeInsets.all(KwSpacing.xl),
           children: switch (_step) {
             0 => [
-              Text(
-                'आपका नाम (Your name)',
-                style: Theme.of(context).textTheme.titleSmall,
-              ),
+              Text('Your name', style: Theme.of(context).textTheme.titleSmall),
               TextField(
                 onChanged: (v) => _data.name = v,
                 decoration: const InputDecoration(hintText: 'Ramesh Kumar'),
               ),
               const SizedBox(height: KwSpacing.lg),
-              Text(
-                'आपका शहर (Your city)',
-                style: Theme.of(context).textTheme.titleSmall,
-              ),
+              Text('Your city', style: Theme.of(context).textTheme.titleSmall),
               DropdownButtonFormField<String>(
                 initialValue: 'Pune',
                 items: const [
@@ -105,7 +99,7 @@ class _WorkerRegisterScreenState extends State<WorkerRegisterScreen> {
             ],
             1 => [
               Text(
-                'आप क्या काम करते हैं?',
+                'What work do you do?',
                 style: Theme.of(context).textTheme.titleSmall,
               ),
               const SizedBox(height: KwSpacing.md),
@@ -122,7 +116,7 @@ class _WorkerRegisterScreenState extends State<WorkerRegisterScreen> {
                           children: [
                             Icon(c.icon, size: 20),
                             const SizedBox(width: 6),
-                            Text(c.labelHi),
+                            Text(c.labelEn),
                           ],
                         ),
                       ),
@@ -134,7 +128,7 @@ class _WorkerRegisterScreenState extends State<WorkerRegisterScreen> {
               ),
               const SizedBox(height: KwSpacing.lg),
               Text(
-                'शुरुआती दिहाड़ी (₹/day)',
+                'Starting day rate (₹/day)',
                 style: Theme.of(context).textTheme.titleSmall,
               ),
               TextField(
@@ -145,7 +139,7 @@ class _WorkerRegisterScreenState extends State<WorkerRegisterScreen> {
             ],
             _ => [
               Text(
-                'आधार कार्ड फोटो',
+                'Aadhaar card photos',
                 style: Theme.of(context).textTheme.titleSmall,
               ),
               const SizedBox(height: KwSpacing.md),
@@ -157,7 +151,7 @@ class _WorkerRegisterScreenState extends State<WorkerRegisterScreen> {
                         _front == null ? Icons.camera_alt : Icons.check_circle,
                         color: _front == null ? null : KwColors.green,
                       ),
-                      label: const Text('📷 Front'),
+                      label: const Text('Front'),
                       onPressed: () => _pickAadhar(true),
                     ),
                   ),
@@ -168,7 +162,7 @@ class _WorkerRegisterScreenState extends State<WorkerRegisterScreen> {
                         _back == null ? Icons.camera_alt : Icons.check_circle,
                         color: _back == null ? null : KwColors.green,
                       ),
-                      label: const Text('📷 Back'),
+                      label: const Text('Back'),
                       onPressed: () => _pickAadhar(false),
                     ),
                   ),
@@ -176,13 +170,13 @@ class _WorkerRegisterScreenState extends State<WorkerRegisterScreen> {
               ),
               const SizedBox(height: KwSpacing.md),
               Text(
-                '🔒 Only our team sees this',
+                'Only our team sees this',
                 style: Theme.of(context).textTheme.labelMedium
                     ?.copyWith(color: KwColors.muted),
               ),
               const SizedBox(height: KwSpacing.xl),
               Text(
-                'काम की फोटो (Optional - max 5)',
+                'Work photos (Optional - max 5)',
                 style: Theme.of(context).textTheme.titleSmall,
               ),
               const SizedBox(height: KwSpacing.sm),

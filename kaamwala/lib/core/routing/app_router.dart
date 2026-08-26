@@ -384,7 +384,7 @@ class ClientShell extends StatelessWidget {
   }
 }
 
-/// Worker bottom-nav shell: होम / कमाई / प्रोफ़ाइल.
+/// Worker bottom-nav shell: Home / Earnings / Profile.
 class WorkerShell extends StatelessWidget {
   const WorkerShell({super.key, required this.shell});
   final StatefulNavigationShell shell;
@@ -397,17 +397,17 @@ class WorkerShell extends StatelessWidget {
         (
           icon: Icons.home_outlined,
           selectedIcon: Icons.home_rounded,
-          label: 'होम',
+          label: 'Home',
         ),
         (
           icon: Icons.currency_rupee_outlined,
           selectedIcon: Icons.currency_rupee_rounded,
-          label: 'कमाई',
+          label: 'Earnings',
         ),
         (
           icon: Icons.person_outline_rounded,
           selectedIcon: Icons.person_rounded,
-          label: 'प्रोफ़ाइल',
+          label: 'Profile',
         ),
       ],
     );
