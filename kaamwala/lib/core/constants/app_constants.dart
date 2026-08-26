@@ -25,18 +25,17 @@ enum ServiceCategory {
 
 /// Booking lifecycle - FR-CLIENT-06 / FR-WORKER-07.
 enum BookingStatus {
-  pending('Pending', '🟡'),
-  accepted('Accepted', '✅'),
-  traveling('Started Travel', '🛵'),
-  arrived('Arrived', '📍'),
-  inProgress('Work In Progress', '🔧'),
-  completed('Completed', '🎉'),
-  cancelled('Cancelled', '❌'),
-  declined('Declined', '🚫');
+  pending('Pending'),
+  accepted('Accepted'),
+  traveling('Started Travel'),
+  arrived('Arrived'),
+  inProgress('Work In Progress'),
+  completed('Completed'),
+  cancelled('Cancelled'),
+  declined('Declined');
 
-  const BookingStatus(this.label, this.emoji);
+  const BookingStatus(this.label);
   final String label;
-  final String emoji;
 
   static BookingStatus fromDb(String value) => BookingStatus.values.firstWhere(
     (s) => s.dbValue == value,

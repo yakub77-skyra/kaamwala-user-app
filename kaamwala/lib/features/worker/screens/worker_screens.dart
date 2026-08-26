@@ -13,7 +13,6 @@ import 'package:kaamwala/core/error/failure.dart';
 import 'package:kaamwala/core/theme/app_theme.dart';
 import 'package:kaamwala/core/ui/kw_empty_state.dart';
 import 'package:kaamwala/core/ui/kw_icon_well.dart';
-import 'package:kaamwala/features/shared/widgets/common_widgets.dart';
 import 'package:kaamwala/features/worker/providers/worker_providers.dart';
 import 'package:kaamwala/features/worker/repositories/worker_repository.dart';
 import 'package:kaamwala/models/booking.dart';
@@ -615,11 +614,16 @@ class _ActiveJobScreenState extends ConsumerState<ActiveJobScreen> {
       appBar: AppBar(title: const Text('Active Job')),
       body: booking.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) =>
-            const EmptyState(emoji: '⚠️', title: 'Could not load this job'),
+        error: (e, _) => const KwEmptyState(
+          illustration: KwIllustration.offline,
+          title: 'Could not load this job',
+        ),
         data: (b) {
           if (b == null) {
-            return const EmptyState(emoji: '🤷', title: 'Job not found');
+            return const KwEmptyState(
+              illustration: KwIllustration.search,
+              title: 'Job not found',
+            );
           }
           final idx = _flow.indexOf(b.status);
           final isTerminal =
@@ -791,8 +795,8 @@ class EarningsScreen extends ConsumerWidget {
               if (list.isEmpty)
                 const Padding(
                   padding: EdgeInsets.all(KwSpacing.xl),
-                  child: EmptyState(
-                    emoji: '💼',
+                  child: KwEmptyState(
+                    illustration: KwIllustration.jobs,
                     title: 'No completed jobs yet',
                     subtitle: 'Finish a job and it shows up here.',
                   ),
@@ -925,7 +929,7 @@ class _PaymentSetupScreenState extends State<PaymentSetupScreen> {
         children: [
           const Center(
             child: Text(
-              'Money will come here 👇',
+              'Your payout lands here after the client confirms.',
               style: TextStyle(fontSize: 16),
             ),
           ),
@@ -948,7 +952,7 @@ class _PaymentSetupScreenState extends State<PaymentSetupScreen> {
             const SizedBox(height: KwSpacing.sm),
             if (_upiCtrl.text.isNotEmpty)
               Text(
-                _upiValid ? '✅ UPI ID looks valid' : '❌ Invalid UPI ID format',
+                _upiValid ? 'UPI ID looks valid' : 'Invalid UPI ID format',
                 style: TextStyle(
                   color: _upiValid ? KwColors.green : KwColors.red,
                   fontSize: 12,
@@ -981,8 +985,8 @@ class _PaymentSetupScreenState extends State<PaymentSetupScreen> {
               const SizedBox(height: KwSpacing.sm),
               Text(
                 _bankValid
-                    ? '✅ Details look valid'
-                    : '❌ Check account number / IFSC / name',
+                    ? 'Details look valid'
+                    : 'Check account number / IFSC / name',
                 style: TextStyle(
                   color: _bankValid ? KwColors.green : KwColors.red,
                   fontSize: 12,

@@ -58,7 +58,7 @@ class _RoleSelectionScreenState extends ConsumerState<RoleSelectionScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Welcome! 🙏')),
+      appBar: AppBar(title: const Text('Welcome!')),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(KwSpacing.xl),

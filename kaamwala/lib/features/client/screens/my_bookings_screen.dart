@@ -112,15 +112,17 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen> {
                           height: MediaQuery.sizeOf(context).height * .55,
                           child:
                               _filter == _BookingsFilter.active && list.isEmpty
-                              ? EmptyState(
-                                  emoji: '📋',
+                              ? KwEmptyState(
+                                  illustration: KwIllustration.bookings,
                                   title: 'No bookings yet',
-                                  subtitle: 'Find a verified worker and book in a few taps.',
-                                  ctaLabel: 'Find a Worker',
-                                  onCta: () => context.go('/home'),
+                                  subtitle:
+                                      'Find a verified worker and book in a '
+                                      'few taps.',
+                                  actionLabel: 'Find a Worker',
+                                  onAction: () => context.go('/home'),
                                 )
-                              : const EmptyState(
-                                  emoji: '🗂️',
+                              : const KwEmptyState(
+                                  illustration: KwIllustration.bookings,
                                   title: 'Nothing here',
                                   subtitle: 'No bookings match this filter.',
                                 ),
@@ -341,7 +343,7 @@ class BookingDetailScreen extends ConsumerWidget {
       SnackBar(
         content: Text(
           ok
-              ? 'Booking cancelled — refund initiated ↩️'
+              ? 'Booking cancelled - refund initiated'
               : (res as Error).failure.message,
         ),
       ),
@@ -371,7 +373,7 @@ class BookingDetailScreen extends ConsumerWidget {
                 ),
                 child: ElevatedButton.icon(
                   icon: const Icon(Icons.thumb_up_alt_rounded, size: 18),
-                  label: const Text('Confirm Work Done → Release Payment'),
+                  label: const Text('Confirm & release payment'),
                   onPressed: () async {
                     final res = await ref
                         .read(bookingsRepoProvider)

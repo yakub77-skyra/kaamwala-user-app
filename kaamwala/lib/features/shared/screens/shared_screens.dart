@@ -10,6 +10,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 import 'package:kaamwala/core/theme/app_theme.dart';
+import 'package:kaamwala/core/ui/kw_empty_state.dart';
 import 'package:kaamwala/features/admin/providers/admin_provider.dart';
 import 'package:kaamwala/features/auth/providers/auth_controller.dart';
 import 'package:kaamwala/features/shared/providers/shared_providers.dart';
@@ -142,7 +143,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
     if (saved == true && mounted) {
       ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Profile updated ✅')));
+          .showSnackBar(const SnackBar(content: Text('Profile updated')));
     }
   }
 
@@ -500,8 +501,8 @@ class NotificationsScreen extends ConsumerWidget {
       ),
       body: async.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => EmptyState(
-          emoji: '⚠️',
+        error: (e, _) => const KwEmptyState(
+          illustration: KwIllustration.offline,
           title: 'Could not load notifications',
           subtitle: 'Pull down to retry.',
         ),
@@ -514,8 +515,8 @@ class NotificationsScreen extends ConsumerWidget {
                   children: [
                     SizedBox(
                       height: MediaQuery.sizeOf(context).height * .7,
-                      child: const EmptyState(
-                        emoji: '🔔',
+                      child: const KwEmptyState(
+                        illustration: KwIllustration.bookings,
                         title: 'No notifications yet',
                         subtitle:
                             'Booking updates and payment alerts appear here.',

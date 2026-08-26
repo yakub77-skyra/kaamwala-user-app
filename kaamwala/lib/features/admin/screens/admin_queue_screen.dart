@@ -8,8 +8,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:kaamwala/core/theme/app_theme.dart';
+import 'package:kaamwala/core/ui/kw_empty_state.dart';
 import 'package:kaamwala/features/admin/providers/admin_provider.dart';
-import 'package:kaamwala/features/shared/widgets/common_widgets.dart';
 
 class AdminQueueScreen extends ConsumerWidget {
   const AdminQueueScreen({super.key});
@@ -19,7 +19,7 @@ class AdminQueueScreen extends ConsumerWidget {
     return showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('❌ Rejection reason'),
+        title: const Text('Rejection reason'),
         content: TextField(
           controller: ctrl,
           autofocus: true,
@@ -50,18 +50,18 @@ class AdminQueueScreen extends ConsumerWidget {
     final async = ref.watch(adminProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('🛡️ Verification Queue')),
+      appBar: AppBar(title: const Text('Verification Queue')),
       body: async.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => const EmptyState(
-          emoji: '⚠️',
+        error: (e, _) => const KwEmptyState(
+          illustration: KwIllustration.offline,
           title: 'Could not load queue',
           subtitle: 'Pull down to retry.',
         ),
         data: (s) {
           if (!s.isAdmin) {
-            return const EmptyState(
-              emoji: '🔒',
+            return const KwEmptyState(
+              illustration: KwIllustration.review,
               title: 'Admins only',
               subtitle: 'Your account is not in the admin list (platform_config.admin_user_ids).',
             );
@@ -73,8 +73,8 @@ class AdminQueueScreen extends ConsumerWidget {
               child: ListView(
                 children: const [
                   SizedBox(height: 160),
-                  EmptyState(
-                    emoji: '🎉',
+                  KwEmptyState(
+                    illustration: KwIllustration.success,
                     title: 'Queue clear!',
                     subtitle: 'No worker profiles waiting for review.',
                   ),
@@ -178,14 +178,16 @@ class AdminQueueScreen extends ConsumerWidget {
                                               reason: reason,
                                             );
                                         if (!context.mounted) return;
-                                        ScaffoldMessenger.of(context)
-                                            .showSnackBar(
-                                              SnackBar(
-                                                content: Text(
-                                                  err ?? '❌ Rejected — worker notified',
-                                                ),
-                                              ),
-                                            );
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          SnackBar(
+                                            content: Text(
+                                              err ??
+                                                  'Rejected - worker notified',
+                                            ),
+                                          ),
+                                        );
                                       },
                               ),
                             ),
@@ -213,7 +215,7 @@ class AdminQueueScreen extends ConsumerWidget {
                                             .showSnackBar(
                                               SnackBar(
                                                 content: Text(
-                                                  err ?? '✅ Approved — push sent to worker',
+                                                  err ?? 'Approved - push sent to worker',
                                                 ),
                                               ),
                                             );

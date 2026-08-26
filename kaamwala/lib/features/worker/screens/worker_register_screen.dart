@@ -187,9 +187,7 @@ class _WorkerRegisterScreenState extends State<WorkerRegisterScreen> {
                       : Icons.check_circle,
                   color: _data.portfolioBytes.isEmpty ? null : KwColors.green,
                 ),
-                label: Text(
-                  '🖼️ ${_data.portfolioBytes.length}/5 photos added',
-                ),
+                label: Text('${_data.portfolioBytes.length}/5 photos added'),
                 onPressed: _data.portfolioBytes.length >= 5
                     ? null
                     : _pickWorkPhotos,
@@ -214,7 +212,7 @@ class _WorkerRegisterScreenState extends State<WorkerRegisterScreen> {
                     height: 18,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
-                : Text(_step == 2 ? 'Submit for Approval' : 'Next →'),
+                : Text(_step == 2 ? 'Submit for Approval' : 'Next'),
           ),
         ),
       ),

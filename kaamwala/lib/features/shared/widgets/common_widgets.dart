@@ -1,4 +1,5 @@
-/// Shared UI widgets - empty states, worker cards, status pills & timeline.
+/// Shared UI widgets - worker cards, status pills & timeline.
+/// (Empty states live in lib/core/ui/kw_empty_state.dart with illustrations.)
 library;
 
 import 'package:cached_network_image/cached_network_image.dart';
@@ -7,75 +8,6 @@ import 'package:flutter/material.dart';
 import 'package:kaamwala/core/constants/app_constants.dart';
 import 'package:kaamwala/core/theme/app_theme.dart';
 import 'package:kaamwala/models/worker.dart';
-
-/// NFR-USE-07: every list has a friendly empty state, never blank white.
-/// Optionally carries a CTA so users always have a next action.
-class EmptyState extends StatelessWidget {
-  const EmptyState({
-    super.key,
-    required this.emoji,
-    required this.title,
-    this.subtitle,
-    this.ctaLabel,
-    this.onCta,
-  });
-  final String emoji;
-  final String title;
-  final String? subtitle;
-  final String? ctaLabel;
-  final VoidCallback? onCta;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(KwSpacing.xxl),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 88,
-              height: 88,
-              decoration: const BoxDecoration(
-                color: KwColors.fill,
-                shape: BoxShape.circle,
-              ),
-              alignment: Alignment.center,
-              child: Text(emoji, style: const TextStyle(fontSize: 40)),
-            ),
-            const SizedBox(height: KwSpacing.lg),
-            Text(
-              title,
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.titleMedium
-                  ?.copyWith(fontWeight: FontWeight.w800),
-            ),
-            if (subtitle != null) ...[
-              const SizedBox(height: KwSpacing.sm),
-              Text(
-                subtitle!,
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodySmall
-                    ?.copyWith(color: KwColors.muted, height: 1.4),
-              ),
-            ],
-            if (ctaLabel != null && onCta != null) ...[
-              const SizedBox(height: KwSpacing.xl),
-              ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  minimumSize: const Size(180, KwSizes.buttonHeight),
-                ),
-                onPressed: onCta,
-                icon: const Icon(Icons.arrow_forward_rounded, size: 18),
-                label: Text(ctaLabel!),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-}
 
 class WorkerAvatar extends StatelessWidget {
   const WorkerAvatar({super.key, this.url, this.radius = 24});

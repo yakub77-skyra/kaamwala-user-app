@@ -30,11 +30,11 @@ class _RateReviewScreenState extends ConsumerState<RateReviewScreen> {
   static const _quickTags = ['On time', 'Polite', 'Neat work', 'Fair price'];
 
   String get _starWord => switch (_stars) {
-    1 => 'Poor 😞',
+    1 => 'Poor',
     2 => 'Not great',
     3 => 'Okay',
     4 => 'Good!',
-    5 => 'Excellent! 🎉',
+    5 => 'Excellent!',
     _ => '',
   };
 
@@ -64,7 +64,7 @@ class _RateReviewScreenState extends ConsumerState<RateReviewScreen> {
     switch (result) {
       case Success():
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Thanks for rating your worker 🎉')),
+          const SnackBar(content: Text('Thanks for rating your worker')),
         );
         // Detail screen is below in the stack; drop back to the bookings tab.
         if (context.canPop()) {
