@@ -7,10 +7,12 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:pinput/pinput.dart';
 
 import 'package:kaamwala/core/error/failure.dart';
 import 'package:kaamwala/core/theme/app_theme.dart';
+import 'package:kaamwala/core/ui/kw_button.dart';
 import 'package:kaamwala/features/auth/providers/auth_controller.dart';
 import 'package:kaamwala/features/auth/repositories/auth_repository.dart';
 import 'package:kaamwala/services/analytics_service.dart';
@@ -126,24 +128,47 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
     final pinTheme = PinTheme(
       width: 48,
       height: 56,
-      textStyle: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700),
+      textStyle: Theme.of(context).textTheme.headlineSmall,
       decoration: BoxDecoration(
         color: KwColors.surface,
-        borderRadius: BorderRadius.circular(KwRadius.button),
-        border: Border.all(color: const Color(0x291A1A2E)),
+        borderRadius: BorderRadius.circular(KwRadius.md),
+        border: Border.all(color: KwColors.line),
       ),
     );
     final canResend =
         !_busy && _resendsLeft > 0 && _remaining <= _otpExpirySeconds - 30;
     return Scaffold(
-      appBar: AppBar(title: const Text('Enter OTP')),
+      appBar: AppBar(),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(KwSpacing.xl),
           children: [
             Text(
-              'Sent to $_phone',
-              style: Theme.of(context).textTheme.bodyMedium,
+              'Enter the 6-digit code',
+              style: Theme.of(context).textTheme.headlineSmall,
+            ),
+            const SizedBox(height: KwSpacing.sm),
+            Row(
+              children: [
+                Text(
+                  'Sent to $_phone',
+                  style: Theme.of(context).textTheme.bodyMedium
+                      ?.copyWith(color: KwColors.muted),
+                ),
+                const SizedBox(width: KwSpacing.sm),
+                InkWell(
+                  onTap: () => context.go('/login'),
+                  borderRadius: BorderRadius.circular(KwRadius.sm),
+                  child: Padding(
+                    padding: const EdgeInsets.all(4),
+                    child: Text(
+                      'Change',
+                      style: Theme.of(context).textTheme.labelMedium
+                          ?.copyWith(color: KwColors.primary),
+                    ),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: KwSpacing.xl),
             Directionality(
@@ -158,7 +183,7 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
                 focusedPinTheme: pinTheme.copyWith(
                   decoration: BoxDecoration(
                     color: KwColors.surface,
-                    borderRadius: BorderRadius.circular(KwRadius.button),
+                    borderRadius: BorderRadius.circular(KwRadius.md),
                     border: Border.all(color: KwColors.primary, width: 2),
                   ),
                 ),
@@ -167,10 +192,22 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
             ),
             if (_error != null) ...[
               const SizedBox(height: KwSpacing.md),
-              Text(
-                '❌ $_error',
-                style: Theme.of(context).textTheme.bodySmall
-                    ?.copyWith(color: KwColors.red),
+              Row(
+                children: [
+                  const Icon(
+                    Icons.error_outline_rounded,
+                    size: 16,
+                    color: KwColors.red,
+                  ),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      _error!,
+                      style: Theme.of(context).textTheme.bodySmall
+                          ?.copyWith(color: KwColors.red),
+                    ),
+                  ),
+                ],
               ),
             ],
             const SizedBox(height: KwSpacing.lg),
@@ -192,16 +229,11 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
               ],
             ),
             const SizedBox(height: KwSpacing.md),
-            ElevatedButton.icon(
+            KwButton(
+              label: 'Verify & Continue',
               onPressed: _busy ? null : _verify,
-              icon: _busy
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.verified_outlined),
-              label: const Text('Verify & Continue'),
+              icon: Icons.verified_outlined,
+              loading: _busy,
             ),
           ],
         ),

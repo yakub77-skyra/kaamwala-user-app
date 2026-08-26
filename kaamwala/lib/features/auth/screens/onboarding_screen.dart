@@ -1,10 +1,12 @@
-/// Onboarding - 3 skippable slides (Phase 3 C2 wireframe).
+/// Onboarding - 3 skippable slides with brand illustrations (UI 2.0).
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:kaamwala/core/theme/app_theme.dart';
+import 'package:kaamwala/core/ui/core_ui.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
@@ -18,19 +20,25 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   static const _slides = [
     (
-      icon: Icons.verified_user_rounded,
-      title: 'Find Verified Workers',
-      body: 'Aadhar-checked plumbers & electricians near you.',
+      illustration: KwIllustration.search,
+      title: 'Find verified workers',
+      body:
+          'Aadhaar-checked plumbers, electricians, painters & carpenters '
+          'near you - with real ratings.',
     ),
     (
-      icon: Icons.bolt_rounded,
-      title: 'Book in 3 Taps',
-      body: 'Pick a worker, describe the job, done. No long forms.',
+      illustration: KwIllustration.bookings,
+      title: 'Book in 3 taps',
+      body:
+          'Pick a worker, describe the job, choose a time slot. '
+          'No long forms, no phone tag.',
     ),
     (
-      icon: Icons.currency_rupee_rounded,
-      title: 'Pay Safely with UPI',
-      body: 'GPay, PhonePe, Paytm - pay only when booked.',
+      illustration: KwIllustration.success,
+      title: 'Pay safely with UPI',
+      body:
+          'GPay, PhonePe, Paytm via Razorpay. Cancel before acceptance '
+          'and the booking fee refunds automatically.',
     ),
   ];
 
@@ -45,10 +53,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     if (_controller.page!.round() >= _slides.length - 1) {
       context.go('/login');
     } else {
-      _controller.nextPage(
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOut,
-      );
+      _controller.nextPage(duration: KwMotion.base, curve: KwMotion.emphasized);
     }
   }
 
@@ -76,21 +81,19 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Container(
-                        width: 120,
-                        height: 120,
-                        decoration: BoxDecoration(
-                          color: KwColors.primaryLight,
-                          borderRadius: BorderRadius.circular(36),
-                        ),
-                        child: Icon(s.icon, size: 56, color: KwColors.primary),
+                      SvgPicture.asset(
+                        'assets/illustrations/${switch (s.illustration) {
+                          KwIllustration.search => 'search',
+                          KwIllustration.bookings => 'bookings',
+                          _ => 'success',
+                        }}.svg',
+                        width: 220,
                       ),
                       const SizedBox(height: KwSpacing.xl),
                       Text(
                         s.title,
                         textAlign: TextAlign.center,
-                        style: Theme.of(context).textTheme.headlineSmall
-                            ?.copyWith(fontWeight: FontWeight.w800),
+                        style: Theme.of(context).textTheme.headlineSmall,
                       ),
                       const SizedBox(height: KwSpacing.md),
                       Text(
@@ -120,29 +123,41 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       for (var i = 0; i < _slides.length; i++)
-                        Container(
-                          width: 8,
+                        AnimatedContainer(
+                          duration: KwMotion.fast,
+                          curve: KwMotion.emphasized,
+                          width:
+                              (_controller.hasClients &&
+                                  _controller.page!.round() == i)
+                              ? 22
+                              : 8,
                           height: 8,
                           margin: const EdgeInsets.symmetric(horizontal: 4),
                           decoration: BoxDecoration(
-                            shape: BoxShape.circle,
+                            borderRadius: BorderRadius.circular(KwRadius.pill),
                             color:
                                 (_controller.hasClients &&
                                     _controller.page!.round() == i)
                                 ? KwColors.primary
-                                : Colors.grey.shade300,
+                                : KwColors.fill,
                           ),
                         ),
                     ],
                   ),
                 ),
                 const SizedBox(height: KwSpacing.lg),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: _next,
-                    child: const Text('Next'),
-                  ),
+                AnimatedBuilder(
+                  animation: _controller,
+                  builder: (context, _) {
+                    final last =
+                        _controller.hasClients &&
+                        _controller.page!.round() >= _slides.length - 1;
+                    return KwButton(
+                      label: last ? 'Get started' : 'Next',
+                      onPressed: _next,
+                      icon: last ? Icons.arrow_forward_rounded : null,
+                    );
+                  },
                 ),
               ],
             ),

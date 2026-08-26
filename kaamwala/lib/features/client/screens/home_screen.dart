@@ -1,5 +1,4 @@
-/// Client Home (Phase 3 C5): greeting header, search bar, category grid,
-/// top-rated workers - all live from Supabase.
+/// Client Home (UI 2.0): greeting header, search, category grid, top-rated.
 library;
 
 import 'package:flutter/material.dart';
@@ -8,6 +7,7 @@ import 'package:go_router/go_router.dart';
 
 import 'package:kaamwala/core/constants/app_constants.dart';
 import 'package:kaamwala/core/theme/app_theme.dart';
+import 'package:kaamwala/core/ui/core_ui.dart';
 import 'package:kaamwala/features/auth/providers/auth_controller.dart';
 import 'package:kaamwala/features/client/providers/client_providers.dart';
 import 'package:kaamwala/features/shared/widgets/common_widgets.dart';
@@ -58,11 +58,8 @@ class HomeScreen extends ConsumerWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          firstName.isEmpty
-                              ? 'Namaste 👋'
-                              : 'Namaste, $firstName 👋',
-                          style: Theme.of(context).textTheme.titleMedium
-                              ?.copyWith(fontWeight: FontWeight.w800),
+                          firstName.isEmpty ? 'Welcome' : 'Namaste, $firstName',
+                          style: Theme.of(context).textTheme.titleMedium,
                         ),
                         Row(
                           children: [
@@ -88,7 +85,7 @@ class HomeScreen extends ConsumerWidget {
                       ref.invalidate(unreadCountProvider);
                     },
                     style: IconButton.styleFrom(
-                      backgroundColor: Colors.white,
+                      backgroundColor: KwColors.surface,
                       shape: const CircleBorder(
                         side: BorderSide(color: KwColors.line),
                       ),
@@ -118,9 +115,9 @@ class HomeScreen extends ConsumerWidget {
                   ),
                   hintText: 'Search plumbers, electricians…',
                   filled: true,
-                  fillColor: Colors.white,
+                  fillColor: KwColors.surface,
                   enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(KwRadius.button),
+                    borderRadius: BorderRadius.circular(KwRadius.md),
                     borderSide: const BorderSide(color: KwColors.line),
                   ),
                 ),
@@ -153,25 +150,22 @@ class HomeScreen extends ConsumerWidget {
               ),
               const SizedBox(height: KwSpacing.md),
               topRated.when(
-                loading: () => const Center(
-                  child: Padding(
-                    padding: EdgeInsets.all(KwSpacing.xl),
-                    child: CircularProgressIndicator(),
-                  ),
-                ),
-                error: (_, _) => EmptyState(
-                  emoji: '⚠️',
+                loading: () => const KwSkeletonList(),
+                error: (_, _) => KwEmptyState(
+                  illustration: KwIllustration.offline,
                   title: 'Could not load workers',
                   subtitle: 'Check your connection and try again.',
-                  ctaLabel: 'Retry',
-                  onCta: () => ref.invalidate(topRatedWorkersProvider),
+                  actionLabel: 'Retry',
+                  onAction: () => ref.invalidate(topRatedWorkersProvider),
                 ),
                 data: (workers) {
                   if (workers.isEmpty) {
-                    return const EmptyState(
-                      emoji: '🛠️',
+                    return const KwEmptyState(
+                      illustration: KwIllustration.jobs,
                       title: 'No workers online yet',
-                      subtitle: 'Verified workers appear here as soon as they go available.',
+                      subtitle:
+                          'Verified workers appear here as soon as they go '
+                          'available.',
                     );
                   }
                   return Column(
@@ -209,37 +203,14 @@ class _CategoryTile extends ConsumerWidget {
           padding: const EdgeInsets.all(KwSpacing.md),
           child: Row(
             children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: KwColors.primaryLight,
-                  borderRadius: BorderRadius.circular(13),
-                ),
-                child: Icon(category.icon, color: KwColors.primary, size: 24),
-              ),
+              KwIconWell(icon: category.icon, size: 44),
               const SizedBox(width: KwSpacing.md),
               Expanded(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      category.labelEn,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.titleSmall
-                          ?.copyWith(fontWeight: FontWeight.w800),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      category.labelHi,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.labelSmall
-                          ?.copyWith(color: KwColors.muted),
-                    ),
-                  ],
+                child: Text(
+                  category.labelEn,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.titleSmall,
                 ),
               ),
             ],

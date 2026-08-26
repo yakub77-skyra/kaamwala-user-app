@@ -251,7 +251,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
                 height: 96,
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: .18),
-                  borderRadius: BorderRadius.circular(28),
+                  borderRadius: BorderRadius.circular(KwRadius.lg),
                 ),
                 child: const Icon(
                   Icons.handyman_rounded,
@@ -260,18 +260,16 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
                 ),
               ),
               const SizedBox(height: 20),
-              const Text(
+              Text(
                 'KaamWala',
-                style: TextStyle(
-                  fontSize: 32,
-                  fontWeight: FontWeight.w800,
-                  color: Colors.white,
-                ),
+                style: Theme.of(context).textTheme.displaySmall
+                    ?.copyWith(color: Colors.white),
               ),
               const SizedBox(height: 4),
               Text(
-                '"काम वाला" • Verified workers, instant booking',
-                style: TextStyle(color: Colors.white.withValues(alpha: .85)),
+                'Verified workers. Instant booking.',
+                style: Theme.of(context).textTheme.bodyMedium
+                    ?.copyWith(color: Colors.white.withValues(alpha: .85)),
               ),
               const SizedBox(height: 36),
               if (failed) ...[

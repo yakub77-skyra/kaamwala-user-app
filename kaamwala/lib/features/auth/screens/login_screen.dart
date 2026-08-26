@@ -1,11 +1,13 @@
-/// Login - phone number entry + OTP verify (Phase 3 C3 wireframes).
+/// Login - phone number entry (UI 2.0: trust-first, single field).
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:kaamwala/core/theme/app_theme.dart';
+import 'package:kaamwala/core/ui/core_ui.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -16,6 +18,7 @@ class LoginScreen extends ConsumerStatefulWidget {
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _phoneCtrl = TextEditingController();
+  final _formKey = GlobalKey<FormState>();
 
   @override
   void dispose() {
@@ -23,128 +26,156 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     super.dispose();
   }
 
-  String? _validate(String value) {
-    final digits = value.replaceAll(RegExp(r'\D'), '');
-    if (digits.length != 10) return 'Enter a valid 10-digit mobile number';
-    return null;
-  }
-
   void _sendOtp() {
-    final error = _validate(_phoneCtrl.text);
-    if (error != null) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(error)));
-      return;
-    }
-    final digits = _phoneCtrl.text.replaceAll(RegExp(r'\D'), '');
+    if (!_formKey.currentState!.validate()) return;
+    final digits = _phoneCtrl.text.trim();
     context.go('/login/otp', extra: '+91$digits');
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: const PreferredSize(
-        preferredSize: Size.fromHeight(kToolbarHeight),
-        child: SizedBox.shrink(),
-      ),
       body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.all(KwSpacing.xl),
-          children: [
-            const SizedBox(height: KwSpacing.xxl),
-            Center(
-              child: Container(
-                width: 88,
-                height: 88,
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: KwColors.brandGradient,
-                  ),
-                  borderRadius: BorderRadius.circular(26),
-                  boxShadow: [
-                    BoxShadow(
-                      color: KwColors.primary.withValues(alpha: .35),
-                      blurRadius: 24,
-                      offset: const Offset(0, 10),
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(KwSpacing.xl),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 420),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const SizedBox(height: KwSpacing.xl),
+                    // Brand mark
+                    Center(
+                      child: Container(
+                        width: 88,
+                        height: 88,
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: KwColors.brandGradient,
+                          ),
+                          borderRadius: BorderRadius.circular(KwRadius.lg),
+                          boxShadow: KwShadows.s3,
+                        ),
+                        child: const Icon(
+                          Icons.handyman_rounded,
+                          size: 44,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: KwSpacing.lg),
+                    Text(
+                      'KaamWala',
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.headlineMedium,
+                    ),
+                    const SizedBox(height: KwSpacing.sm),
+                    Text(
+                      'Verified workers for every home job.\n'
+                      'Booked in seconds, paid by UPI.',
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.bodyMedium
+                          ?.copyWith(color: KwColors.muted, height: 1.5),
+                    ),
+                    const SizedBox(height: KwSpacing.xxl),
+
+                    // Trust chips
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        _TrustChip(
+                          icon: Icons.verified_rounded,
+                          label: 'Aadhaar-verified',
+                        ),
+                        const SizedBox(width: KwSpacing.sm),
+                        _TrustChip(
+                          icon: Icons.lock_rounded,
+                          label: 'Secure UPI',
+                        ),
+                        const SizedBox(width: KwSpacing.sm),
+                        _TrustChip(
+                          icon: Icons.undo_rounded,
+                          label: 'Auto-refund',
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: KwSpacing.xxl),
+
+                    TextFormField(
+                      controller: _phoneCtrl,
+                      keyboardType: TextInputType.phone,
+                      maxLength: 10,
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      style: Theme.of(context).textTheme.titleMedium,
+                      decoration: const InputDecoration(
+                        counterText: '',
+                        prefixText: '+91  ',
+                        prefixStyle: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: KwColors.ink,
+                        ),
+                        hintText: '98765 43210',
+                      ),
+                      validator: (v) => (v?.trim().length ?? 0) == 10
+                          ? null
+                          : 'Enter a valid 10-digit mobile number',
+                      onFieldSubmitted: (_) => _sendOtp(),
+                    ),
+                    const SizedBox(height: KwSpacing.lg),
+                    KwButton(
+                      label: 'Send OTP',
+                      onPressed: _sendOtp,
+                      icon: Icons.arrow_forward_rounded,
+                    ),
+                    const SizedBox(height: KwSpacing.md),
+                    KwButton(
+                      label: 'I want to work - sign up as worker',
+                      variant: KwButtonVariant.secondary,
+                      onPressed: () => context.go('/login/otp'),
                     ),
                   ],
                 ),
-                child: const Icon(
-                  Icons.handyman_rounded,
-                  size: 44,
-                  color: Colors.white,
-                ),
               ),
             ),
-            const SizedBox(height: KwSpacing.md),
-            Center(
-              child: Text(
-                'KaamWala',
-                style: Theme.of(context).textTheme.headlineLarge
-                    ?.copyWith(fontWeight: FontWeight.w800),
-              ),
-            ),
-            const SizedBox(height: KwSpacing.sm),
-            const Center(child: Text('Find verified workers near you')),
-            const SizedBox(height: KwSpacing.xxl),
-            Text('Phone Number', style: Theme.of(context).textTheme.titleSmall),
-            const SizedBox(height: KwSpacing.sm),
-            Row(
-              children: [
-                Expanded(
-                  flex: 2,
-                  child: TextFormField(
-                    initialValue: '+91',
-                    readOnly: true,
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-                const SizedBox(width: KwSpacing.sm),
-                Expanded(
-                  flex: 5,
-                  child: TextFormField(
-                    controller: _phoneCtrl,
-                    keyboardType: TextInputType.phone,
-                    maxLength: 12,
-                    decoration: const InputDecoration(
-                      counterText: '',
-                      hintText: '98765 43210',
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: KwSpacing.lg),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _sendOtp,
-                child: const Text('Send OTP'),
-              ),
-            ),
-            const SizedBox(height: KwSpacing.lg),
-            Row(
-              children: [
-                const Expanded(child: Divider()),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: KwSpacing.md),
-                  child: Text(
-                    'OR',
-                    style: Theme.of(context).textTheme.labelSmall,
-                  ),
-                ),
-                const Expanded(child: Divider()),
-              ],
-            ),
-            const SizedBox(height: KwSpacing.md),
-            OutlinedButton(
-              onPressed: () => context.go('/login/otp'),
-              child: const Text('I am a Worker → (sign up)'),
-            ),
-          ],
+          ),
         ),
+      ),
+    );
+  }
+}
+
+class _TrustChip extends StatelessWidget {
+  const _TrustChip({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: KwColors.surface,
+        borderRadius: BorderRadius.circular(KwRadius.pill),
+        border: Border.all(color: KwColors.line),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: KwColors.green),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: Theme.of(context).textTheme.labelSmall
+                ?.copyWith(color: KwColors.muted, letterSpacing: 0),
+          ),
+        ],
       ),
     );
   }
