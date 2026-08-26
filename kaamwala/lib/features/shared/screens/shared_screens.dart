@@ -10,11 +10,13 @@ import 'package:image_picker/image_picker.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 import 'package:kaamwala/core/theme/app_theme.dart';
+import 'package:kaamwala/core/error/failure.dart';
 import 'package:kaamwala/core/ui/kw_empty_state.dart';
 import 'package:kaamwala/features/admin/providers/admin_provider.dart';
 import 'package:kaamwala/features/auth/providers/auth_controller.dart';
 import 'package:kaamwala/features/shared/providers/shared_providers.dart';
 import 'package:kaamwala/features/shared/widgets/common_widgets.dart';
+import 'package:kaamwala/services/location_service.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -88,56 +90,91 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final auth = ref.read(authControllerProvider);
     final nameCtrl = TextEditingController(text: auth.profile?.name ?? '');
     final cityCtrl = TextEditingController(text: auth.profile?.city ?? '');
+    var locatingCity = false;
+    Future<void> detectCity(StateSetter setSheetState) async {
+      if (locatingCity) return;
+      setSheetState(() => locatingCity = true);
+      final res = await LocationService.detectCity();
+      if (!mounted) return;
+      setSheetState(() => locatingCity = false);
+      switch (res) {
+        case Success(:final data):
+          cityCtrl.text = data;
+        case Error(:final failure):
+          ScaffoldMessenger.of(context)
+              .showSnackBar(SnackBar(content: Text(failure.message)));
+      }
+    }
+
     final saved = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
-      builder: (context) => Padding(
-        padding: EdgeInsets.only(
-          left: KwSpacing.xl,
-          right: KwSpacing.xl,
-          top: KwSpacing.sm,
-          bottom: MediaQuery.viewInsetsOf(context).bottom + KwSpacing.xl,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Edit profile',
-              style: Theme.of(context).textTheme.titleMedium
-                  ?.copyWith(fontWeight: FontWeight.w800),
-            ),
-            const SizedBox(height: KwSpacing.lg),
-            TextField(
-              controller: nameCtrl,
-              textCapitalization: TextCapitalization.words,
-              decoration: const InputDecoration(labelText: 'Your name'),
-            ),
-            const SizedBox(height: KwSpacing.md),
-            TextField(
-              controller: cityCtrl,
-              textCapitalization: TextCapitalization.words,
-              decoration: const InputDecoration(labelText: 'City'),
-            ),
-            const SizedBox(height: KwSpacing.xl),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () async {
-                  final err = await ref
-                      .read(authControllerProvider.notifier)
-                      .updateDetails(name: nameCtrl.text, city: cityCtrl.text);
-                  if (!context.mounted) return;
-                  Navigator.pop(context, err == null);
-                  if (err != null) {
-                    ScaffoldMessenger.of(context)
-                        .showSnackBar(SnackBar(content: Text(err)));
-                  }
-                },
-                child: const Text('Save'),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setSheetState) => Padding(
+          padding: EdgeInsets.only(
+            left: KwSpacing.xl,
+            right: KwSpacing.xl,
+            top: KwSpacing.sm,
+            bottom: MediaQuery.viewInsetsOf(context).bottom + KwSpacing.xl,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Edit profile',
+                style: Theme.of(context).textTheme.titleMedium
+                    ?.copyWith(fontWeight: FontWeight.w800),
               ),
-            ),
-          ],
+              const SizedBox(height: KwSpacing.lg),
+              TextField(
+                controller: nameCtrl,
+                textCapitalization: TextCapitalization.words,
+                decoration: const InputDecoration(labelText: 'Your name'),
+              ),
+              const SizedBox(height: KwSpacing.md),
+              TextField(
+                controller: cityCtrl,
+                textCapitalization: TextCapitalization.words,
+                decoration: InputDecoration(
+                  labelText: 'City',
+                  helperText: 'Tap the pin to detect automatically',
+                  suffixIcon: IconButton(
+                    onPressed: () => detectCity(setSheetState),
+                    tooltip: 'Use my current location',
+                    icon: locatingCity
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.my_location_rounded),
+                  ),
+                ),
+              ),
+              const SizedBox(height: KwSpacing.xl),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () async {
+                    final err = await ref
+                        .read(authControllerProvider.notifier)
+                        .updateDetails(
+                          name: nameCtrl.text,
+                          city: cityCtrl.text,
+                        );
+                    if (!context.mounted) return;
+                    Navigator.pop(context, err == null);
+                    if (err != null) {
+                      ScaffoldMessenger.of(context)
+                          .showSnackBar(SnackBar(content: Text(err)));
+                    }
+                  },
+                  child: const Text('Save'),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

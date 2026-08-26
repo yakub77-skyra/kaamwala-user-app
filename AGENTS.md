@@ -44,11 +44,20 @@ KaamWala = India-first marketplace app connecting customers ("clients") with ver
 cd kaamwala
 flutter pub get
 flutter analyze        # must be clean
-flutter test           # 5 tests, all pass
-flutter build apk --debug   # ~5-10 min first run
+flutter test           # 45 tests, all pass
 dart format lib test   # CI enforces formatting
 ```
-App runs with env from `.env`: `flutter run --dart-define-from-file=../.env` — but `.env` holds SERVER keys too; the app only reads KW_* vars (`KW_SUPABASE_URL`, `KW_SUPABASE_ANON_KEY`, `KW_RAZORPAY_KEY_ID` are NOT yet in `.env` — add them or pass via --dart-define).
+**TWO-APP SPLIT (2026-08-26): plain `flutter run` / `flutter build apk` now FAILS - Gradle requires a flavor.** One codebase, two Android flavors (`mode` dimension), two store binaries:
+```
+# KaamWala (customer, com.kaamwala.kaamwala):
+flutter run --flavor customer -t lib/main_customer.dart --dart-define-from-file=../.env
+# KaamWala Partner (worker, com.kaamwala.partner):
+flutter run --flavor partner  -t lib/main_partner.dart  --dart-define-from-file=../.env
+# Release (per flavor):
+flutter build apk --release --flavor customer -t lib/main_customer.dart --target-platform android-arm64 --dart-define-from-file=../.env
+flutter build apk --release --flavor partner  -t lib/main_partner.dart  --target-platform android-arm64 --dart-define-from-file=../.env
+```
+Architecture: `lib/core/config/app_flavor.dart` (enum + `flavorProvider`) -> entry points override it -> `bootstrap()` in `lib/bootstrap.dart` -> router `appRedirect(stage, loc, {flavor})` gates wrong-role accounts to `/wrong-app`. Role cards deleted: customer binary auto-picks client, partner binary goes straight to worker registration. Flavor gate tested in router_redirect_test. Firebase per-flavor JSONs at `android/app/src/<flavor>/google-services.json`; root json (= customer pkg) still works for customer builds; partner builds currently run WITHOUT Firebase (graceful no-op) until its own json is added.
 
 ## Key conventions
 - Repositories return `Result<T>` (`Success/Error` from `core/error/failure.dart`); UI never sees raw exceptions
@@ -65,7 +74,8 @@ App runs with env from `.env`: `flutter run --dart-define-from-file=../.env` —
 4. **DEVICE E2E NOW UNBLOCKED WITHOUT MSG91**: test-OTP bypass refreshed to 2026-12-31 for phone +916300204252 (= admin uid bea75642-b97a-4750-af47-b338f49b312a) with fixed code 123456 (`message_id:"test-otp"`, full login loop verified 2026-08-25). Walk on device: install release APK (--dart-define-from-file=../.env), login with that number/123456, book -> pay ₹20 test -> accept -> complete -> confirm; ALSO clears deferred R8/proguard runtime smoke. Release build: `flutter build apk --release --target-platform android-arm64 --dart-define-from-file=../.env` (~1/3 build time). NOTE: other phone numbers still need MSG91 (item 2)
    **SINGLE-DEVICE DUAL-ROLE FIXTURE (2026-08-25)**: second test number +919900001111=123456 -> "Test Worker Ramesh" (auth uid 692e11d0-d666-4ae9-910d-1fa48795892d), users+workers rows pre-seeded PENDING approval, plumber Kharadi/Pune ₹200-600 (worker_row_id 3374ba66-076f-48e8-b577-6a9d5994f061). Device flow: login client/admin number -> first-login profile screen (name/city/Customer) -> search plumber -> book Ramesh -> pay ₹20 rzp_test -> Settings>Admin console approve worker -> logout -> login 919900001111/123456 -> pick Worker role -> jobs -> accept->traveling->arrived->start->complete -> logout -> back as client -> confirm completion -> rate. Release APK arm64 built+ready at kaamwala\build\app\outputs\flutter-apk\app-release.apk (58.6MB, R8 on, upload-key signed)
 5. E2E harness lives at `kaamwala/tools/kw_e2e.ps1`; run `powershell -ExecutionPolicy Bypass -File tools\kw_e2e.ps1` - self-contained, 33/33 PASS 2026-08-25 post-hardening
-6. Optional later: Cloudflare proxy wiring (`Env.apiOrigin` exists but unused), Play Store upload (Phase 5 docs ready in kaamwala/store/, keystore password given to user), i18n proper hi/en (post-v1 backlog)
+6. **Firebase app #2 for Partner flavor**: add Android app `com.kaamwala.partner` in the Firebase console (same project), download its google-services.json -> place at `android/app/src/partner/google-services.json`. Until then partner builds skip google-services/crashlytics plugins (graceful: no FCM push, no Crashlytics). Customer keeps root json.
+7. Optional later: Cloudflare proxy wiring (`Env.apiOrigin` exists but unused), Play Store upload x2 listings ("KaamWala" + "KaamWala Partner", Phase 5 docs in kaamwala/store/ as template), distinct launcher icon for Partner, i18n proper hi/en (post-v1 backlog)
 
 ## Gotchas learned the hard way
 - PowerShell 5.1: `ConvertTo-Json` turns raw JSON strings into nested objects — wrap values with `($raw | ConvertTo-Json -Compress)` to force string literals

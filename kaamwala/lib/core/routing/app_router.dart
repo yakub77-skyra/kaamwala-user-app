@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:kaamwala/core/config/app_flavor.dart';
 import 'package:kaamwala/core/theme/app_theme.dart';
 import 'package:kaamwala/features/admin/screens/admin_queue_screen.dart';
 import 'package:kaamwala/features/auth/providers/auth_controller.dart';
@@ -16,6 +17,7 @@ import 'package:kaamwala/features/auth/screens/login_screen.dart';
 import 'package:kaamwala/features/auth/screens/onboarding_screen.dart';
 import 'package:kaamwala/features/auth/screens/otp_screen.dart';
 import 'package:kaamwala/features/auth/screens/role_selection_screen.dart';
+import 'package:kaamwala/features/auth/screens/wrong_app_screen.dart';
 import 'package:kaamwala/features/client/screens/booking_screen.dart';
 import 'package:kaamwala/features/client/screens/chat_screen.dart';
 import 'package:kaamwala/features/client/screens/home_screen.dart';
@@ -35,7 +37,21 @@ final rootNavigatorKey = GlobalKey<NavigatorState>();
 /// Pure routing policy per auth stage (table-driven tested in
 /// `test/router_redirect_test.dart`). Returns null to allow [loc], else the
 /// location to redirect to.
-String? appRedirect(AppStage stage, String loc) {
+///
+/// [flavor] gates the two binaries against each other: the customer app
+/// never serves a worker account and vice versa - both land on /wrong-app.
+String? appRedirect(
+  AppStage stage,
+  String loc, {
+  AppFlavor flavor = AppFlavor.customer,
+}) {
+  final wrongRoleForFlavor = switch (flavor) {
+    AppFlavor.customer => stage == AppStage.workerApp,
+    AppFlavor.partner => stage == AppStage.clientApp,
+  };
+  if (wrongRoleForFlavor) {
+    return loc == '/wrong-app' ? null : '/wrong-app';
+  }
   switch (stage) {
     case AppStage.loading:
     case AppStage.startupError:
@@ -70,13 +86,14 @@ String? appRedirect(AppStage stage, String loc) {
 
 final routerProvider = Provider<GoRouter>((ref) {
   final auth = ref.watch(authControllerProvider);
+  final flavor = ref.watch(flavorProvider);
 
   return GoRouter(
     navigatorKey: rootNavigatorKey,
     initialLocation: '/',
     debugLogDiagnostics: false,
     redirect: (context, state) =>
-        appRedirect(auth.stage, state.matchedLocation),
+        appRedirect(auth.stage, state.matchedLocation, flavor: flavor),
     routes: [
       GoRoute(path: '/', builder: (context, state) => const SplashScreen()),
       GoRoute(path: '/onboarding', builder: (_, _) => const OnboardingScreen()),
@@ -85,7 +102,12 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/login/otp',
         builder: (_, s) => OtpScreen(phone: s.extra as String?),
       ),
-      GoRoute(path: '/role', builder: (_, _) => const RoleSelectionScreen()),
+      GoRoute(
+        path: '/role',
+        builder: (_, _) =>
+            RoleSelectionScreen(workerOnly: flavor == AppFlavor.partner),
+      ),
+      GoRoute(path: '/wrong-app', builder: (_, _) => const WrongAppScreen()),
       GoRoute(
         path: '/notifications',
         builder: (_, _) => const NotificationsScreen(),
@@ -232,6 +254,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
   @override
   Widget build(BuildContext context) {
     final stage = ref.watch(authControllerProvider).stage;
+    final flavor = ref.watch(flavorProvider);
     final failed = stage == AppStage.startupError;
     return Scaffold(
       body: DecoratedBox(
@@ -261,13 +284,15 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
               ),
               const SizedBox(height: 20),
               Text(
-                'KaamWala',
+                flavor.appName,
                 style: Theme.of(context).textTheme.displaySmall
                     ?.copyWith(color: Colors.white),
               ),
               const SizedBox(height: 4),
               Text(
-                'Verified workers. Instant booking.',
+                flavor == AppFlavor.partner
+                    ? 'Get jobs near you. Earn every day.'
+                    : 'Verified workers. Instant booking.',
                 style: Theme.of(context).textTheme.bodyMedium
                     ?.copyWith(color: Colors.white.withValues(alpha: .85)),
               ),

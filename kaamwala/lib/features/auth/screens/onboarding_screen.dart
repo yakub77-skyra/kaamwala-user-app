@@ -1,24 +1,28 @@
 /// Onboarding - 3 skippable slides with brand illustrations (UI 2.0).
+/// Slide copy is flavor-aware: customers see booking benefits, partners see
+/// earning benefits.
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:kaamwala/core/config/app_flavor.dart';
 import 'package:kaamwala/core/theme/app_theme.dart';
 import 'package:kaamwala/core/ui/core_ui.dart';
 
-class OnboardingScreen extends StatefulWidget {
+class OnboardingScreen extends ConsumerStatefulWidget {
   const OnboardingScreen({super.key});
 
   @override
-  State<OnboardingScreen> createState() => _OnboardingScreenState();
+  ConsumerState<OnboardingScreen> createState() => _OnboardingScreenState();
 }
 
-class _OnboardingScreenState extends State<OnboardingScreen> {
+class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   final _controller = PageController();
 
-  static const _slides = [
+  static const _customerSlides = [
     (
       illustration: KwIllustration.search,
       title: 'Find verified workers',
@@ -42,15 +46,44 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     ),
   ];
 
+  static const _partnerSlides = [
+    (
+      illustration: KwIllustration.search,
+      title: 'Get work near you',
+      body:
+          'Real jobs from real customers - plumbing, electrical, painting, '
+          'carpentry. Right in your area.',
+    ),
+    (
+      illustration: KwIllustration.bookings,
+      title: 'Accept jobs in one tap',
+      body:
+          'New job requests reach you instantly. Accept, travel, complete - '
+          'all tracked step by step.',
+    ),
+    (
+      illustration: KwIllustration.success,
+      title: 'Keep more of every job',
+      body:
+          'You keep 90% of each completed job. Money goes straight to your '
+          'bank account via UPI.',
+    ),
+  ];
+
   @override
   void dispose() {
     _controller.dispose();
     super.dispose();
   }
 
+  List<({KwIllustration illustration, String title, String body})> _slidesFor(
+    AppFlavor flavor,
+  ) => flavor == AppFlavor.partner ? _partnerSlides : _customerSlides;
+
   void _next() {
     if (!_controller.hasClients) return;
-    if (_controller.page!.round() >= _slides.length - 1) {
+    if (_controller.page!.round() >=
+        _slidesFor(ref.read(flavorProvider)).length - 1) {
       context.go('/login');
     } else {
       _controller.nextPage(duration: KwMotion.base, curve: KwMotion.emphasized);
@@ -59,6 +92,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final slides = _slidesFor(ref.watch(flavorProvider));
     return Scaffold(
       appBar: AppBar(
         actions: [
@@ -73,9 +107,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           Expanded(
             child: PageView.builder(
               controller: _controller,
-              itemCount: _slides.length,
+              itemCount: slides.length,
               itemBuilder: (context, i) {
-                final s = _slides[i];
+                final s = slides[i];
                 return Padding(
                   padding: const EdgeInsets.all(KwSpacing.xxl),
                   child: Column(
@@ -122,7 +156,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   builder: (context, _) => Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      for (var i = 0; i < _slides.length; i++)
+                      for (var i = 0; i < slides.length; i++)
                         AnimatedContainer(
                           duration: KwMotion.fast,
                           curve: KwMotion.emphasized,
@@ -151,7 +185,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   builder: (context, _) {
                     final last =
                         _controller.hasClients &&
-                        _controller.page!.round() >= _slides.length - 1;
+                        _controller.page!.round() >= slides.length - 1;
                     return KwButton(
                       label: last ? 'Get started' : 'Next',
                       onPressed: _next,

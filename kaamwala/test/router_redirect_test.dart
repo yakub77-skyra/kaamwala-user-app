@@ -2,6 +2,7 @@
 // Guards the redirect contract the whole app's navigation safety depends on.
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:kaamwala/core/config/app_flavor.dart';
 import 'package:kaamwala/core/routing/app_router.dart';
 import 'package:kaamwala/features/auth/providers/auth_controller.dart';
 
@@ -66,7 +67,7 @@ void main() {
       }
     });
 
-    test('workerApp: only /w/* passes; everything else -> /w/home', () {
+    test('workerApp (partner binary): only /w/* passes; else -> /w/home', () {
       for (final ok in [
         '/w/home',
         '/w/earnings',
@@ -75,7 +76,11 @@ void main() {
         '/w/job/x',
         '/w/active/y',
       ]) {
-        expect(appRedirect(AppStage.workerApp, ok), isNull, reason: ok);
+        expect(
+          appRedirect(AppStage.workerApp, ok, flavor: AppFlavor.partner),
+          isNull,
+          reason: ok,
+        );
       }
       for (final blocked in [
         '/',
@@ -87,11 +92,77 @@ void main() {
         '/worker/abc',
       ]) {
         expect(
-          appRedirect(AppStage.workerApp, blocked),
+          appRedirect(AppStage.workerApp, blocked, flavor: AppFlavor.partner),
           '/w/home',
           reason: blocked,
         );
       }
+    });
+  });
+
+  group('appRedirect flavor gate (two-app split)', () {
+    test('customer binary: worker account lands on /wrong-app', () {
+      for (final loc in ['/', '/home', '/w/home', '/w/jobs', '/role']) {
+        expect(
+          appRedirect(AppStage.workerApp, loc, flavor: AppFlavor.customer),
+          '/wrong-app',
+          reason: loc,
+        );
+      }
+      // /wrong-app itself passes through.
+      expect(
+        appRedirect(
+          AppStage.workerApp,
+          '/wrong-app',
+          flavor: AppFlavor.customer,
+        ),
+        isNull,
+      );
+    });
+
+    test('partner binary: client account lands on /wrong-app', () {
+      for (final loc in ['/', '/home', '/search', '/bookings', '/profile']) {
+        expect(
+          appRedirect(AppStage.clientApp, loc, flavor: AppFlavor.partner),
+          '/wrong-app',
+          reason: loc,
+        );
+      }
+      expect(
+        appRedirect(
+          AppStage.clientApp,
+          '/wrong-app',
+          flavor: AppFlavor.partner,
+        ),
+        isNull,
+      );
+    });
+
+    test('partner binary: worker flows unaffected', () {
+      expect(
+        appRedirect(AppStage.workerApp, '/w/home', flavor: AppFlavor.partner),
+        isNull,
+      );
+      expect(
+        appRedirect(AppStage.workerApp, '/home', flavor: AppFlavor.partner),
+        '/w/home',
+      );
+    });
+
+    test('auth stages are flavor-agnostic', () {
+      for (final flavor in AppFlavor.values) {
+        expect(appRedirect(AppStage.login, '/x', flavor: flavor), '/login');
+        expect(
+          appRedirect(AppStage.roleSelection, '/x', flavor: flavor),
+          '/role',
+        );
+        expect(appRedirect(AppStage.loading, '/x', flavor: flavor), '/');
+      }
+    });
+
+    test('default flavor is customer (back-compat for existing callers)', () {
+      expect(appRedirect(AppStage.clientApp, '/home'), isNull);
+      expect(appRedirect(AppStage.workerApp, '/home'), '/wrong-app');
     });
   });
 }

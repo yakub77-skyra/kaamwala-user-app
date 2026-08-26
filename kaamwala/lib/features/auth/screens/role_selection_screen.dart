@@ -1,15 +1,22 @@
-/// Role selection - ONE TIME, LOCKED (Phase 3 C4 wireframe).
-/// No role toggle anywhere in v2 (Phase 2 section 2 role rules).
+/// Profile setup after first OTP login. With the two-app split there is no
+/// role choice anymore: the customer binary creates clients, the partner
+/// binary ([workerOnly]) creates workers on their way to registration.
 library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:kaamwala/core/error/failure.dart';
 import 'package:kaamwala/core/theme/app_theme.dart';
 import 'package:kaamwala/features/auth/providers/auth_controller.dart';
+import 'package:kaamwala/services/location_service.dart';
 
 class RoleSelectionScreen extends ConsumerStatefulWidget {
-  const RoleSelectionScreen({super.key});
+  const RoleSelectionScreen({super.key, this.workerOnly = false});
+
+  /// Partner flavor: this screen starts a work profile (role=worker) that
+  /// continues into trade details + admin verification.
+  final bool workerOnly;
 
   @override
   ConsumerState<RoleSelectionScreen> createState() =>
@@ -19,8 +26,8 @@ class RoleSelectionScreen extends ConsumerStatefulWidget {
 class _RoleSelectionScreenState extends ConsumerState<RoleSelectionScreen> {
   final _nameCtrl = TextEditingController();
   final _cityCtrl = TextEditingController();
-  bool _worker = false;
   bool _busy = false;
+  bool _locating = false;
 
   @override
   void dispose() {
@@ -29,7 +36,22 @@ class _RoleSelectionScreenState extends ConsumerState<RoleSelectionScreen> {
     super.dispose();
   }
 
-  Future<void> _submit(bool asWorker) async {
+  Future<void> _detectCity() async {
+    if (_locating || _busy) return;
+    setState(() => _locating = true);
+    final res = await LocationService.detectCity();
+    if (!mounted) return;
+    setState(() => _locating = false);
+    switch (res) {
+      case Success(:final data):
+        _cityCtrl.text = data;
+      case Error(:final failure):
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(failure.message)));
+    }
+  }
+
+  Future<void> _submit() async {
     if (_nameCtrl.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please enter your name first')),
@@ -41,7 +63,7 @@ class _RoleSelectionScreenState extends ConsumerState<RoleSelectionScreen> {
         .read(authControllerProvider.notifier)
         .finishRoleSelection(
           name: _nameCtrl.text.trim(),
-          asWorker: asWorker,
+          asWorker: widget.workerOnly,
           city: _cityCtrl.text.trim(),
         );
     if (!mounted) return;
@@ -63,6 +85,23 @@ class _RoleSelectionScreenState extends ConsumerState<RoleSelectionScreen> {
         child: ListView(
           padding: const EdgeInsets.all(KwSpacing.xl),
           children: [
+            Text(
+              widget.workerOnly
+                  ? 'Create your work profile'
+                  : 'Set up your profile',
+              style: Theme.of(context).textTheme.headlineSmall
+                  ?.copyWith(fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: KwSpacing.sm),
+            Text(
+              widget.workerOnly
+                  ? 'Tell customers who you are. Next you will pick your '
+                        'trade and get verified.'
+                  : 'Just two details and you can start booking.',
+              style: Theme.of(context).textTheme.bodyMedium
+                  ?.copyWith(color: KwColors.muted),
+            ),
+            const SizedBox(height: KwSpacing.xl),
             Text('Your name', style: Theme.of(context).textTheme.titleSmall),
             const SizedBox(height: KwSpacing.sm),
             TextFormField(
@@ -77,125 +116,53 @@ class _RoleSelectionScreenState extends ConsumerState<RoleSelectionScreen> {
             TextFormField(
               controller: _cityCtrl,
               textCapitalization: TextCapitalization.words,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 hintText: 'e.g. Pune (helps us find nearby workers)',
                 labelText: 'City',
-                prefixIcon: Icon(Icons.location_city_rounded),
+                prefixIcon: const Icon(Icons.location_city_rounded),
+                suffixIcon: IconButton(
+                  onPressed: _detectCity,
+                  tooltip: 'Use my current location',
+                  icon: _locating
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.my_location_rounded),
+                ),
               ),
             ),
-            const SizedBox(height: KwSpacing.md),
-            Text(
-              'How will you use KaamWala?',
-              style: Theme.of(context).textTheme.titleSmall,
-            ),
-            const SizedBox(height: KwSpacing.md),
-            _roleCard(
-              icon: Icons.home_rounded,
-              tint: KwColors.blue,
-              title: 'I need a worker',
-              body: 'Book plumbers, electricians & more',
-              selected: !_worker,
-              onTap: () => setState(() => _worker = false),
-            ),
-            const SizedBox(height: KwSpacing.md),
-            _roleCard(
-              icon: Icons.construction_rounded,
-              tint: KwColors.primary,
-              title: 'I am a worker',
-              body: 'Get jobs near you & earn money daily',
-              selected: _worker,
-              onTap: () => setState(() => _worker = true),
+            const SizedBox(height: KwSpacing.xs),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                onPressed: _detectCity,
+                icon: const Icon(Icons.my_location_rounded, size: 16),
+                label: const Text('Use my current location'),
+              ),
             ),
             const SizedBox(height: KwSpacing.lg),
             ElevatedButton(
-              onPressed: _busy ? null : () => _submit(_worker),
+              onPressed: _busy ? null : _submit,
               child: _busy
                   ? const SizedBox(
                       width: 18,
                       height: 18,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : const Text('Continue'),
+                  : Text(widget.workerOnly ? 'Continue as worker' : 'Start'),
             ),
             const SizedBox(height: KwSpacing.sm),
             Text(
-              'This choice is FINAL. One phone number = one role.',
+              widget.workerOnly
+                  ? 'One phone number = one KaamWala Partner account.'
+                  : 'This choice is FINAL. One phone number = one role.',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.labelMedium
                   ?.copyWith(color: KwColors.muted),
             ),
           ],
-        ),
-      ),
-    );
-  }
-
-  Widget _roleCard({
-    required IconData icon,
-    required Color tint,
-    required String title,
-    required String body,
-    required bool selected,
-    required VoidCallback onTap,
-  }) {
-    return Card(
-      margin: EdgeInsets.zero,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(KwRadius.card),
-        side: BorderSide(
-          color: selected ? KwColors.primary : Colors.transparent,
-          width: 2,
-        ),
-      ),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(KwRadius.card),
-        child: Padding(
-          padding: const EdgeInsets.all(KwSpacing.lg),
-          child: Row(
-            children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: tint.withValues(alpha: .1),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Icon(icon, color: tint, size: 24),
-              ),
-              const SizedBox(width: KwSpacing.lg),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: Theme.of(context).textTheme.titleMedium
-                          ?.copyWith(fontWeight: FontWeight.w700),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      body,
-                      style: Theme.of(context).textTheme.bodySmall
-                          ?.copyWith(color: KwColors.muted),
-                    ),
-                  ],
-                ),
-              ),
-              if (selected)
-                const Icon(
-                  Icons.check_circle_rounded,
-                  color: KwColors.primary,
-                  size: 22,
-                )
-              else
-                const Icon(
-                  Icons.radio_button_unchecked_rounded,
-                  color: KwColors.muted,
-                  size: 22,
-                ),
-            ],
-          ),
         ),
       ),
     );

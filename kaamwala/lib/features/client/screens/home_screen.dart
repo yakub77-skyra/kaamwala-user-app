@@ -25,9 +25,7 @@ class HomeScreen extends ConsumerWidget {
     final firstName = (name == null || name.isEmpty)
         ? ''
         : name.split(' ').first;
-    final city = (auth.profile?.city ?? '').isEmpty
-        ? 'Pune'
-        : auth.profile!.city;
+    final city = (auth.profile?.city ?? '').isEmpty ? null : auth.profile!.city;
 
     return Scaffold(
       body: SafeArea(
@@ -61,20 +59,23 @@ class HomeScreen extends ConsumerWidget {
                           firstName.isEmpty ? 'Welcome' : 'Namaste, $firstName',
                           style: Theme.of(context).textTheme.titleMedium,
                         ),
-                        Row(
-                          children: [
-                            const Icon(
-                              Icons.location_on_rounded,
-                              size: 14,
-                              color: KwColors.primary,
-                            ),
-                            const SizedBox(width: 2),
-                            Text(
-                              city,
-                              style: Theme.of(context).textTheme.bodySmall
-                                  ?.copyWith(color: KwColors.muted),
-                            ),
-                          ],
+                        GestureDetector(
+                          onTap: () => context.go('/profile'),
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.location_on_rounded,
+                                size: 14,
+                                color: KwColors.primary,
+                              ),
+                              const SizedBox(width: 2),
+                              Text(
+                                city ?? 'Add your city',
+                                style: Theme.of(context).textTheme.bodySmall
+                                    ?.copyWith(color: KwColors.muted),
+                              ),
+                            ],
+                          ),
                         ),
                       ],
                     ),
