@@ -11,6 +11,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:kaamwala/core/constants/app_constants.dart';
 import 'package:kaamwala/core/error/failure.dart';
 import 'package:kaamwala/core/theme/app_theme.dart';
+import 'package:kaamwala/core/ui/kw_empty_state.dart';
 import 'package:kaamwala/features/client/providers/client_providers.dart';
 import 'package:kaamwala/features/shared/widgets/common_widgets.dart';
 import 'package:kaamwala/models/review.dart';
@@ -76,8 +77,8 @@ class _WorkerProfileScreenState extends ConsumerState<WorkerProfileScreen> {
           if (w == null) {
             return Scaffold(
               appBar: AppBar(),
-              body: const EmptyState(
-                emoji: '😕',
+              body: const KwEmptyState(
+                illustration: KwIllustration.search,
                 title: 'Worker not found',
                 subtitle: 'This profile may have been removed.',
               ),
@@ -128,7 +129,7 @@ class _WorkerProfileScreenState extends ConsumerState<WorkerProfileScreen> {
                   foregroundColor: KwColors.dark,
                   title: Text(
                     w.name.isEmpty ? 'Worker' : w.name,
-                    style: const TextStyle(fontWeight: FontWeight.w800),
+                    style: Theme.of(context).textTheme.titleMedium,
                   ),
                   flexibleSpace: FlexibleSpaceBar(
                     background: SafeArea(
@@ -139,15 +140,12 @@ class _WorkerProfileScreenState extends ConsumerState<WorkerProfileScreen> {
                             padding: const EdgeInsets.all(4),
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              color: Colors.white,
-                              border: Border.all(color: Colors.white, width: 3),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: .08),
-                                  blurRadius: 16,
-                                  offset: const Offset(0, 6),
-                                ),
-                              ],
+                              color: KwColors.surface,
+                              border: Border.all(
+                                color: KwColors.surface,
+                                width: 3,
+                              ),
+                              boxShadow: KwShadows.s2,
                             ),
                             child: WorkerAvatar(url: w.photoUrl, radius: 44),
                           ),
@@ -398,15 +396,9 @@ class _StatChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: KwColors.surface,
         borderRadius: BorderRadius.circular(KwRadius.chip),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: .05),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        boxShadow: KwShadows.s1,
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -421,17 +413,11 @@ class _StatChip extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
-                value,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
-                  color: tint,
-                ),
-              ),
+              Text(value, style: Theme.of(context).textTheme.labelMedium),
               Text(
                 label,
-                style: const TextStyle(fontSize: 9.5, color: KwColors.muted),
+                style: Theme.of(context).textTheme.labelSmall
+                    ?.copyWith(color: KwColors.muted),
               ),
             ],
           ),

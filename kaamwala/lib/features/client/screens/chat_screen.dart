@@ -137,7 +137,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                           ),
                           const SizedBox(height: KwSpacing.md),
                           Text(
-                            'Say hello to $_title 👋',
+                            'Say hello to $_title…',
                             style: Theme.of(context).textTheme.bodySmall
                                 ?.copyWith(color: KwColors.muted),
                           ),

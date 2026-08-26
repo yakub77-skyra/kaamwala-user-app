@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:kaamwala/core/theme/app_theme.dart';
+import 'package:kaamwala/core/ui/core_ui.dart';
 import 'package:kaamwala/features/auth/providers/auth_controller.dart';
 import 'package:kaamwala/features/client/providers/client_providers.dart';
 import 'package:kaamwala/features/shared/widgets/common_widgets.dart';
@@ -138,12 +139,17 @@ class _WorkerListScreenState extends ConsumerState<WorkerListScreen> {
           ),
           Expanded(
             child: workersState.loading
-                ? const Center(child: CircularProgressIndicator())
+                ? const Padding(
+                    padding: EdgeInsets.all(KwSpacing.lg),
+                    child: KwSkeletonList(),
+                  )
                 : sorted.isEmpty
-                ? EmptyState(
-                    emoji: '🔍',
+                ? KwEmptyState(
+                    illustration: KwIllustration.search,
                     title: 'No ${category.labelEn.toLowerCase()}s found',
-                    subtitle: 'Try a different category or check back soon - new workers join every day.',
+                    subtitle:
+                        'Try a different category or check back soon - new '
+                        'workers join every day.',
                   )
                 : RefreshIndicator(
                     onRefresh: () async => _load(name: _searchCtrl.text),
