@@ -10,6 +10,7 @@ import 'dart:async';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -22,6 +23,7 @@ import 'package:kaamwala/features/shared/providers/connectivity_provider.dart';
 import 'package:kaamwala/services/analytics_service.dart';
 import 'package:kaamwala/services/fcm_service.dart';
 import 'package:kaamwala/services/supabase_service.dart';
+import 'package:kaamwala/l10n/app_localizations.dart';
 
 Future<void> bootstrap(AppFlavor flavor) async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -143,6 +145,17 @@ class _KaamWalaAppState extends ConsumerState<KaamWalaApp> {
       theme: AppTheme.light(),
       routerConfig: router,
       builder: (context, child) => _OfflineBoundary(child: child),
+      localizationsDelegates: const [
+        AppLocalizations.delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [
+        Locale('en'),
+        Locale('hi'),
+        Locale('mr'),
+      ],
     );
   }
 }

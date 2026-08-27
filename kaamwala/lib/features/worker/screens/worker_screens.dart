@@ -4,7 +4,9 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 
 import 'dart:async';
 
@@ -13,10 +15,12 @@ import 'package:kaamwala/core/error/failure.dart';
 import 'package:kaamwala/core/theme/app_theme.dart';
 import 'package:kaamwala/core/ui/kw_empty_state.dart';
 import 'package:kaamwala/core/ui/kw_icon_well.dart';
+import 'package:kaamwala/features/client/providers/client_providers.dart';
 import 'package:kaamwala/features/worker/providers/worker_providers.dart';
 import 'package:kaamwala/features/worker/repositories/worker_repository.dart';
 import 'package:kaamwala/models/booking.dart';
 import 'package:kaamwala/services/analytics_service.dart';
+import 'package:kaamwala/services/supabase_service.dart';
 
 /// W2 - Profile under review gate. Worker cannot see jobs until approved.
 class UnderReviewScreen extends StatelessWidget {
@@ -572,6 +576,9 @@ class ActiveJobScreen extends ConsumerStatefulWidget {
 
 class _ActiveJobScreenState extends ConsumerState<ActiveJobScreen> {
   bool _busy = false;
+  bool _sharingLocation = false;
+  Timer? _locationTimer;
+  Position? _currentPosition;
 
   static const _flow = [
     BookingStatus.accepted,
@@ -589,6 +596,79 @@ class _ActiveJobScreenState extends ConsumerState<ActiveJobScreen> {
     _ => '',
   };
 
+  @override
+  void initState() {
+    super.initState();
+    _checkLocationSharing();
+  }
+
+  @override
+  void dispose() {
+    _locationTimer?.cancel();
+    if (_sharingLocation) {
+      _stopLocationSharing();
+    }
+    super.dispose();
+  }
+
+  Future<void> _checkLocationSharing() async {
+    final booking = ref.read(bookingByIdProvider(widget.bookingId)).value;
+    if (booking != null && booking.status == BookingStatus.traveling && booking.isSharingLocation) {
+      _startLocationSharing();
+    }
+  }
+
+  Future<void> _startLocationSharing() async {
+    if (!await Geolocator.isLocationServiceEnabled()) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Location services are disabled. Enable them to share location.')),
+        );
+      }
+      return;
+    }
+    var permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+    }
+    if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Location permission is required to share live location.')),
+        );
+      }
+      return;
+    }
+    setState(() => _sharingLocation = true);
+    _updateLocation();
+    _locationTimer = Timer.periodic(const Duration(seconds: 30), (_) => _updateLocation());
+  }
+
+  Future<void> _stopLocationSharing() async {
+    _locationTimer?.cancel();
+    await ref.read(bookingsRepoProvider).stopLiveLocation(widget.bookingId);
+    if (mounted) {
+      setState(() => _sharingLocation = false);
+    }
+  }
+
+  Future<void> _updateLocation() async {
+    try {
+      final position = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
+      );
+      if (!mounted) return;
+      setState(() => _currentPosition = position);
+      await ref.read(bookingsRepoProvider).updateLiveLocation(
+        bookingId: widget.bookingId,
+        lat: position.latitude,
+        lng: position.longitude,
+      );
+    } catch (e) {
+      // Silently fail - best effort
+    }
+  }
+
   Future<void> _advance(Booking b, BookingStatus next) async {
     if (_busy) return;
     setState(() => _busy = true);
@@ -597,6 +677,12 @@ class _ActiveJobScreenState extends ConsumerState<ActiveJobScreen> {
         .updateStatus(widget.bookingId, next, expectedFrom: b.status);
     if (res is Success) {
       unawaited(AnalyticsService.logEvent('job_${next.dbValue}'));
+      // Start/stop location sharing based on status
+      if (next == BookingStatus.traveling) {
+        _startLocationSharing();
+      } else if (b.status == BookingStatus.traveling && next != BookingStatus.traveling) {
+        _stopLocationSharing();
+      }
     }
     await ref.read(activeJobsProvider.notifier).refresh();
     await ref.read(completedJobsProvider.notifier).refresh();
@@ -611,7 +697,17 @@ class _ActiveJobScreenState extends ConsumerState<ActiveJobScreen> {
   Widget build(BuildContext context) {
     final booking = ref.watch(bookingByIdProvider(widget.bookingId));
     return Scaffold(
-      appBar: AppBar(title: const Text('Active Job')),
+      appBar: AppBar(
+        title: const Text('Active Job'),
+        actions: [
+          if (_sharingLocation)
+            IconButton(
+              icon: const Icon(Icons.location_on, color: KwColors.green),
+              tooltip: 'Sharing live location',
+              onPressed: _stopLocationSharing,
+            ),
+        ],
+      ),
       body: booking.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => const KwEmptyState(
@@ -636,6 +732,7 @@ class _ActiveJobScreenState extends ConsumerState<ActiveJobScreen> {
           return ListView(
             padding: const EdgeInsets.all(KwSpacing.lg),
             children: [
+              // Status timeline
               for (var i = 0; i < _flow.length; i++)
                 StatusRow(
                   done:
@@ -644,6 +741,94 @@ class _ActiveJobScreenState extends ConsumerState<ActiveJobScreen> {
                   current: i == idx,
                   label: _flow[i].label,
                 ),
+              // Live location sharing card
+              if (b.status == BookingStatus.traveling) ...[
+                const SizedBox(height: KwSpacing.lg),
+                Card(
+                  color: _sharingLocation ? KwColors.greenLight : null,
+                  child: Padding(
+                    padding: const EdgeInsets.all(KwSpacing.lg),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              _sharingLocation ? Icons.location_on : Icons.location_off,
+                              color: _sharingLocation ? KwColors.green : KwColors.muted,
+                            ),
+                            const SizedBox(width: KwSpacing.md),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    _sharingLocation ? 'Sharing Live Location' : 'Share Live Location',
+                                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                      fontWeight: FontWeight.w700,
+                                      color: _sharingLocation ? KwColors.green : KwColors.ink,
+                                    ),
+                                  ),
+                                  Text(
+                                    _sharingLocation
+                                        ? 'Client can see your real-time location'
+                                        : 'Let the client track your arrival',
+                                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                      color: KwColors.muted,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Switch(
+                              value: _sharingLocation,
+                              onChanged: (v) {
+                                if (v) {
+                                  _startLocationSharing();
+                                } else {
+                                  _stopLocationSharing();
+                                }
+                              },
+                              activeColor: KwColors.green,
+                            ),
+                          ],
+                        ),
+                        if (_sharingLocation && _currentPosition != null) ...[
+                          const SizedBox(height: KwSpacing.md),
+                          Container(
+                            padding: const EdgeInsets.all(KwSpacing.md),
+                            decoration: BoxDecoration(
+                              color: KwColors.fill,
+                              borderRadius: BorderRadius.circular(KwRadius.md),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.my_location, size: 18, color: KwColors.blue),
+                                const SizedBox(width: KwSpacing.sm),
+                                Expanded(
+                                  child: Text(
+                                    'Lat: ${_currentPosition!.latitude.toStringAsFixed(6)}, '
+                                    'Lng: ${_currentPosition!.longitude.toStringAsFixed(6)}',
+                                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                      fontFamily: 'monospace',
+                                    ),
+                                  ),
+                                ),
+                                Text(
+                                  'Updated ${DateFormat('HH:mm:ss').format(DateTime.now())}',
+                                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                                    color: KwColors.muted,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+              ],
               const SizedBox(height: KwSpacing.xl),
               if (next != null)
                 ElevatedButton.icon(

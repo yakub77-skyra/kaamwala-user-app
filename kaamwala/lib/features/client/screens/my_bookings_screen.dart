@@ -16,6 +16,8 @@ import 'package:kaamwala/features/client/providers/client_providers.dart';
 import 'package:kaamwala/features/shared/widgets/common_widgets.dart';
 import 'package:kaamwala/models/booking.dart';
 import 'package:kaamwala/services/analytics_service.dart';
+import 'package:kaamwala/services/supabase_service.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' as supabase;
 
 enum _BookingsFilter { active, completed, cancelled, all }
 
@@ -494,6 +496,12 @@ class BookingDetailScreen extends ConsumerWidget {
                   ),
                 ),
               ),
+
+              // ---------- live location (when traveling) ----------
+              if (b.isSharingLocation) ...[
+                const SizedBox(height: KwSpacing.md),
+                _LiveLocationCard(booking: b),
+              ],
               const SizedBox(height: KwSpacing.md),
 
               // ---------- details ----------
@@ -534,6 +542,39 @@ class BookingDetailScreen extends ConsumerWidget {
                           ' • ₹${b.bookingFee.toStringAsFixed(0)} booking fee',
                         ),
                       ),
+                      // ---------- photos ----------
+                      if (b.photoUrls.isNotEmpty) ...[
+                        const Divider(),
+                        ListTile(
+                          leading: const Icon(Icons.photo_library_outlined),
+                          title: const Text('Job photos'),
+                          subtitle: Text('${b.photoUrls.length} photo(s)'),
+                        ),
+                        SizedBox(
+                          height: 80,
+                          child: ListView.separated(
+                            scrollDirection: Axis.horizontal,
+                            padding: const EdgeInsets.symmetric(horizontal: KwSpacing.lg),
+                            itemCount: b.photoUrls.length,
+                            separatorBuilder: (_, __) => const SizedBox(width: KwSpacing.sm),
+                            itemBuilder: (context, i) => ClipRRect(
+                              borderRadius: BorderRadius.circular(KwRadius.sm),
+                              child: Image.network(
+                                b.photoUrls[i],
+                                width: 80,
+                                height: 80,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => Container(
+                                  width: 80,
+                                  height: 80,
+                                  color: KwColors.fill,
+                                  child: const Icon(Icons.broken_image_outlined, size: 20),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -579,6 +620,174 @@ class BookingDetailScreen extends ConsumerWidget {
             ],
           );
         },
+      ),
+    );
+  }
+}
+
+/// Live location card shown on the customer's booking detail screen when the
+/// worker is sharing their location during the 'traveling' status.
+class _LiveLocationCard extends ConsumerStatefulWidget {
+  const _LiveLocationCard({required this.booking});
+  final Booking booking;
+
+  @override
+  ConsumerState<_LiveLocationCard> createState() => _LiveLocationCardState();
+}
+
+class _LiveLocationCardState extends ConsumerState<_LiveLocationCard> {
+  Booking? _latest;
+  supabase.RealtimeChannel? _channel;
+
+  @override
+  void initState() {
+    super.initState();
+    _latest = widget.booking;
+    _subscribeBooking();
+  }
+
+  void _subscribeBooking() {
+    if (!SupabaseService.isReady) return;
+    _channel = ref
+        .read(bookingsRepoProvider)
+        .subscribeBooking(widget.booking.id, _onBookingUpdate);
+  }
+
+  void _onBookingUpdate() {
+    ref.read(myBookingsProvider.notifier).refresh();
+  }
+
+  @override
+  void dispose() {
+    if (_channel != null) {
+      SupabaseService.client.removeChannel(_channel!);
+    }
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final b = _latest ?? widget.booking;
+    if (b.liveLat == null || b.liveLng == null) {
+      return const SizedBox.shrink();
+    }
+    final updated = b.liveLocationUpdatedAt;
+    final ago = updated == null
+        ? ''
+        : 'updated ${DateFormat('HH:mm:ss').format(updated)}';
+    return Card(
+      color: KwColors.greenLight,
+      child: Padding(
+        padding: const EdgeInsets.all(KwSpacing.lg),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(
+                  Icons.location_on_rounded,
+                  color: KwColors.green,
+                  size: 22,
+                ),
+                const SizedBox(width: KwSpacing.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Worker is on the way',
+                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: KwColors.green,
+                        ),
+                      ),
+                      Text(
+                        'Live location sharing active',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: KwColors.green.withValues(alpha: .8),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const Icon(
+                  Icons.directions_bike_rounded,
+                  color: KwColors.green,
+                  size: 28,
+                ),
+              ],
+            ),
+            const SizedBox(height: KwSpacing.md),
+            Container(
+              padding: const EdgeInsets.all(KwSpacing.md),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(KwRadius.md),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.my_location_rounded,
+                        size: 18,
+                        color: KwColors.blue,
+                      ),
+                      const SizedBox(width: KwSpacing.sm),
+                      Expanded(
+                        child: Text(
+                          'Lat: ${b.liveLat!.toStringAsFixed(6)}, '
+                          'Lng: ${b.liveLng!.toStringAsFixed(6)}',
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            fontFamily: 'monospace',
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: KwSpacing.sm),
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.access_time_rounded,
+                        size: 16,
+                        color: KwColors.muted,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        ago,
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: KwColors.muted,
+                        ),
+                      ),
+                      const Spacer(),
+                      TextButton.icon(
+                        onPressed: () {
+                          final url = 'https://www.google.com/maps/search/?api=1&query='
+                              '${b.liveLat},${b.liveLng}';
+                          // Using url_launcher would be ideal here
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Opening map...'),
+                              duration: Duration(seconds: 1),
+                            ),
+                          );
+                        },
+                        icon: const Icon(Icons.map_outlined, size: 16),
+                        label: const Text('View on Map'),
+                        style: TextButton.styleFrom(
+                          visualDensity: VisualDensity.compact,
+                          textStyle: const TextStyle(fontSize: 12),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

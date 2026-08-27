@@ -1,6 +1,7 @@
 /// Worker-side repository (FR-WORKER-01..10).
 library;
 
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -171,9 +172,46 @@ class WorkerRepository {
         query = query.eq('status', expectedFrom.dbValue);
       }
       await query;
+      
+      // Send push notification to client for status changes
+      if (s != expectedFrom) {
+        unawaited(_sendStatusPush(bookingId, s));
+      }
       return const Success(null);
     } catch (e) {
       return Error(mapException(e));
+    }
+  }
+
+  /// Sends push notification to client for booking status changes.
+  Future<void> _sendStatusPush(String bookingId, BookingStatus status) async {
+    if (!SupabaseService.isReady) return;
+    try {
+      // Call the send-push Edge Function with the appropriate kind
+      String kind;
+      switch (status) {
+        case BookingStatus.traveling:
+          kind = 'traveling';
+          break;
+        case BookingStatus.arrived:
+          kind = 'arrived';
+          break;
+        case BookingStatus.inProgress:
+          kind = 'in_progress';
+          break;
+        case BookingStatus.completed:
+          kind = 'completed';
+          break;
+        default:
+          return; // Don't send for other statuses
+      }
+      
+      await SupabaseService.client.functions.invoke(
+        'send-push',
+        body: {'kind': kind, 'booking_id': bookingId},
+      );
+    } catch (_) {
+      // Best-effort: never throw on push failures
     }
   }
 

@@ -168,9 +168,15 @@ class SectionHeader extends StatelessWidget {
 
 /// Worker card - photo, name, rating pill, verified badge, area, price-from.
 class WorkerCard extends StatelessWidget {
-  const WorkerCard({super.key, required this.worker, this.onTap});
+  const WorkerCard({
+    super.key,
+    required this.worker,
+    this.onTap,
+    this.distanceKm,
+  });
   final Worker worker;
   final VoidCallback? onTap;
+  final double? distanceKm;
 
   @override
   Widget build(BuildContext context) {
@@ -267,6 +273,39 @@ class WorkerCard extends StatelessWidget {
                             ],
                           ),
                         ),
+                        if (distanceKm != null) ...[
+                          const SizedBox(width: KwSpacing.sm),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 7,
+                              vertical: 3,
+                            ),
+                            decoration: BoxDecoration(
+                              color: KwColors.blueLight,
+                              borderRadius: BorderRadius.circular(KwRadius.chip),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(
+                                  Icons.location_on_rounded,
+                                  size: 12,
+                                  color: KwColors.blue,
+                                ),
+                                const SizedBox(width: 3),
+                                Text(
+                                  distanceKm! < 1
+                                      ? '${(distanceKm! * 1000).round()}m'
+                                      : '${distanceKm!.toStringAsFixed(1)} km',
+                                  style: const TextStyle(
+                                    fontSize: 11.5,
+                                    fontWeight: FontWeight.w800,
+                                    color: KwColors.blue,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                         const Spacer(),
                         if (w.priceMin > 0)
                           Text.rich(

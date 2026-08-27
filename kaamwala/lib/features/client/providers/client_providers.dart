@@ -13,11 +13,27 @@ import 'package:kaamwala/features/shared/providers/shared_providers.dart';
 import 'package:kaamwala/models/booking.dart';
 import 'package:kaamwala/models/worker.dart';
 import 'package:kaamwala/services/supabase_service.dart';
+import 'package:kaamwala/services/location_service.dart';
 
 final workersRepoProvider = Provider((_) => const WorkersRepository());
 final bookingsRepoProvider = Provider((_) => const BookingsRepository());
 final reviewsRepoProvider = Provider((_) => const ReviewsRepository());
 final chatRepoProvider = Provider((_) => const ChatRepository());
+
+/// User's current location for distance-based worker search.
+/// Null if not available / permission denied.
+final userLocationProvider = FutureProvider.autoDispose<({double lat, double lng})?>((
+  ref,
+) async {
+  final result = await LocationService.detectCity();
+  if (result case Success(:final data)) {
+    // We only get city name from detectCity, not coordinates.
+    // For distance sorting, we'd need actual GPS coordinates.
+    // This is a placeholder - in production, use Geolocator.getCurrentPosition directly.
+    return null;
+  }
+  return null;
+});
 
 class WorkersState {
   const WorkersState({this.workers = const [], this.loading = false});
@@ -30,11 +46,24 @@ class WorkersController
   @override
   WorkersState build(ServiceCategory arg) => const WorkersState();
 
-  Future<void> load({String? city, String? name}) async {
+  Future<void> load({
+    String? city,
+    String? name,
+    bool availableNow = false,
+    double? userLat,
+    double? userLng,
+  }) async {
     state = WorkersState(workers: state.workers, loading: true);
     final result = await ref
         .read(workersRepoProvider)
-        .search(category: arg, city: city, name: name);
+        .search(
+          category: arg,
+          city: city,
+          name: name,
+          availableNow: availableNow,
+          userLat: userLat,
+          userLng: userLng,
+        );
     state = switch (result) {
       Success(:final data) => WorkersState(workers: data),
       _ => const WorkersState(),

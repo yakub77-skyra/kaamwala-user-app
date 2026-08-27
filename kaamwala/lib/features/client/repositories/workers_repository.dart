@@ -12,10 +12,15 @@ class WorkersRepository {
 
   /// Search by category + city + optional name. Default sort rating desc.
   /// Paginated 10/page max 50 (NFR-SCAL-03).
+  /// [availableNow] filters to workers with is_available=true.
+  /// [userLat]/[userLng] enables distance-based sorting (nearest first).
   Future<Result<List<Worker>>> search({
     required ServiceCategory category,
     String? city,
     String? name,
+    bool availableNow = false,
+    double? userLat,
+    double? userLng,
     int limit = 10,
     int offset = 0,
   }) async {
@@ -29,22 +34,46 @@ class WorkersRepository {
       if (city != null && city.isNotEmpty) {
         query = query.eq('city', city);
       }
+      if (availableNow) {
+        query = query.eq('is_available', true);
+      }
       final q = name?.trim() ?? '';
       if (q.isNotEmpty) {
         // PostgREST embed filtering on users.name (safe: parameterised).
         query = query.ilike('users.name', '%$q%');
       }
-      final rows = await query
-          .order('rating_avg', ascending: false)
-          .range(offset, offset + limit - 1);
-      return Success([for (final r in rows) Worker.fromMap(r)]);
+      
+      // Apply sorting
+      if (userLat != null && userLng != null) {
+        // Distance sorting - use PostGIS if available, otherwise sort client-side
+        // For now, fetch and sort client-side (limit 50 max)
+        final rows = await query.limit(50);
+        final workers = [for (final r in rows) Worker.fromMap(r)];
+        workers.sort((a, b) {
+          final da = a.distanceKmFrom(userLat, userLng) ?? double.infinity;
+          final db = b.distanceKmFrom(userLat, userLng) ?? double.infinity;
+          return da.compareTo(db);
+        });
+        final paginated = workers.skip(offset).take(limit).toList();
+        return Success(paginated);
+      } else {
+        final rows = await query
+            .order('rating_avg', ascending: false)
+            .range(offset, offset + limit - 1);
+        return Success([for (final r in rows) Worker.fromMap(r)]);
+      }
     } catch (e) {
       return Error(mapException(e));
     }
   }
 
   /// Home screen "Top rated near you" - any category, available only.
-  Future<Result<List<Worker>>> topRated({String? city, int limit = 5}) async {
+  Future<Result<List<Worker>>> topRated({
+    String? city,
+    int limit = 5,
+    double? userLat,
+    double? userLng,
+  }) async {
     if (!SupabaseService.isReady) return const Success([]);
     try {
       var query = SupabaseService.client
@@ -55,10 +84,22 @@ class WorkersRepository {
       if (city != null && city.isNotEmpty) {
         query = query.eq('city', city);
       }
-      final rows = await query
-          .order('rating_avg', ascending: false)
-          .limit(limit);
-      return Success([for (final r in rows) Worker.fromMap(r)]);
+      
+      if (userLat != null && userLng != null) {
+        final rows = await query.limit(50);
+        final workers = [for (final r in rows) Worker.fromMap(r)];
+        workers.sort((a, b) {
+          final da = a.distanceKmFrom(userLat, userLng) ?? double.infinity;
+          final db = b.distanceKmFrom(userLat, userLng) ?? double.infinity;
+          return da.compareTo(db);
+        });
+        return Success(workers.take(limit).toList());
+      } else {
+        final rows = await query
+            .order('rating_avg', ascending: false)
+            .limit(limit);
+        return Success([for (final r in rows) Worker.fromMap(r)]);
+      }
     } catch (e) {
       return Error(mapException(e));
     }

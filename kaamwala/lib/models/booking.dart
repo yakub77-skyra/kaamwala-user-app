@@ -26,6 +26,10 @@ class Booking {
     this.workerName = '',
     this.workerPhoto,
     this.createdAt,
+    this.liveLat,
+    this.liveLng,
+    this.liveLocationUpdatedAt,
+    this.photoUrls = const [],
   });
 
   final String id;
@@ -60,6 +64,17 @@ class Booking {
   final String workerName;
   final String? workerPhoto;
 
+  /// Live location sharing (worker -> customer during 'traveling' status).
+  final double? liveLat;
+  final double? liveLng;
+  final DateTime? liveLocationUpdatedAt;
+
+  /// Client-uploaded photos/videos of the job (max 5).
+  final List<String> photoUrls;
+
+  bool get isSharingLocation =>
+      liveLat != null && liveLng != null && status == BookingStatus.traveling;
+
   bool get canCancel => status == BookingStatus.pending;
 
   factory Booking.fromMap(Map<String, dynamic> map) {
@@ -93,6 +108,11 @@ class Booking {
           ? workerUser['photo_url'] as String?
           : null,
       createdAt: DateTime.tryParse((map['created_at'] ?? '') as String),
+      liveLat: (map['live_lat'] as num?)?.toDouble(),
+      liveLng: (map['live_lng'] as num?)?.toDouble(),
+      liveLocationUpdatedAt:
+          DateTime.tryParse((map['live_location_updated_at'] ?? '') as String),
+      photoUrls: (map['photo_urls'] as List?)?.cast<String>() ?? const [],
     );
   }
 }

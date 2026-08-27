@@ -163,4 +163,42 @@ class BookingsRepository {
         )
         .subscribe();
   }
+
+  /// Updates live location for worker tracking (only during 'traveling' status).
+  Future<Result<void>> updateLiveLocation({
+    required String bookingId,
+    required double lat,
+    required double lng,
+  }) async {
+    if (!SupabaseService.isReady) {
+      return const Error(ServerFailure('Backend not configured'));
+    }
+    try {
+      await SupabaseService.client.from('bookings').update({
+        'live_lat': lat,
+        'live_lng': lng,
+        'live_location_updated_at': DateTime.now().toIso8601String(),
+      }).eq('id', bookingId).eq('status', BookingStatus.traveling.dbValue);
+      return const Success(null);
+    } catch (e) {
+      return Error(mapException(e));
+    }
+  }
+
+  /// Stops live location sharing.
+  Future<Result<void>> stopLiveLocation(String bookingId) async {
+    if (!SupabaseService.isReady) {
+      return const Error(ServerFailure('Backend not configured'));
+    }
+    try {
+      await SupabaseService.client.from('bookings').update({
+        'live_lat': null,
+        'live_lng': null,
+        'live_location_updated_at': null,
+      }).eq('id', bookingId);
+      return const Success(null);
+    } catch (e) {
+      return Error(mapException(e));
+    }
+  }
 }

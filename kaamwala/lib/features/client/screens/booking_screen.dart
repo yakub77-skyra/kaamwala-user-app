@@ -2,10 +2,12 @@
 library;
 
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 
 import 'package:kaamwala/core/constants/app_constants.dart';
@@ -33,8 +35,11 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
   bool _busy = false;
   num _estMin = 300;
   num _estMax = 800;
+  final List<XFile> _photos = [];
+  final ImagePicker _picker = ImagePicker();
 
   static const _slots = ['8-10', '10-12', '12-14', '14-16', '16-18', '18-20'];
+  static const _maxPhotos = 5;
 
   @override
   void initState() {
@@ -71,6 +76,73 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
     if (picked != null) setState(() => _date = picked);
   }
 
+  Future<void> _pickPhotos() async {
+    if (_photos.length >= _maxPhotos) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Maximum $_maxPhotos photos/videos allowed')),
+      );
+      return;
+    }
+    final remaining = _maxPhotos - _photos.length;
+    try {
+      final picked = await _picker.pickMultiImage(limit: remaining);
+      if (picked.isNotEmpty && mounted) {
+        setState(() => _photos.addAll(picked));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Failed to pick media: $e')));
+      }
+    }
+  }
+
+  Future<void> _takePhoto() async {
+    if (_photos.length >= _maxPhotos) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Maximum $_maxPhotos photos/videos allowed')),
+      );
+      return;
+    }
+    try {
+      final photo = await _picker.pickImage(source: ImageSource.camera);
+      if (photo != null && mounted) {
+        setState(() => _photos.add(photo));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Failed to take photo: $e')));
+      }
+    }
+  }
+
+  void _removePhoto(int index) {
+    setState(() => _photos.removeAt(index));
+  }
+
+  Future<List<String>> _uploadPhotos(String bookingId) async {
+    if (!SupabaseService.isReady || _photos.isEmpty) return [];
+    try {
+      final bucket = SupabaseService.client.storage.from('booking_photos');
+      final urls = <String>[];
+      final uid = SupabaseService.currentUserId!;
+      for (var i = 0; i < _photos.length; i++) {
+        final ext = _photos[i].path.split('.').last;
+        final path = '$uid/$bookingId/${DateTime.now().millisecondsSinceEpoch}_$i.$ext';
+        await bucket.uploadBinary(path, File(_photos[i].path).readAsBytesSync());
+        urls.add(bucket.getPublicUrl(path));
+      }
+      return urls;
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Failed to upload media: $e')));
+      }
+      return [];
+    }
+  }
+
   Future<void> _submit() async {
     if (_busy) return;
     if (!_formKey.currentState!.validate()) return;
@@ -97,6 +169,14 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
     if (!mounted) return;
     switch (bookingResult) {
       case Success(:final data):
+        // Upload photos after booking is created
+        final photoUrls = await _uploadPhotos(data.id);
+        if (photoUrls.isNotEmpty) {
+          await SupabaseService.client
+              .from('bookings')
+              .update({'photo_urls': photoUrls})
+              .eq('id', data.id);
+        }
         unawaited(
           AnalyticsService.logEvent('booking_created', {
             'category': ref.read(selectedCategoryProvider).name,
@@ -178,6 +258,78 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
                   hintText: 'Flat / building / street, landmark',
                   prefixIcon: Icon(Icons.home_outlined),
                 ),
+              ),
+              const SizedBox(height: KwSpacing.lg),
+
+              // ---------- photos/videos ----------
+              Text(
+                'Add photos/videos (optional)',
+                style: Theme.of(context).textTheme.titleSmall,
+              ),
+              const SizedBox(height: KwSpacing.sm),
+              if (_photos.isNotEmpty)
+                SizedBox(
+                  height: 100,
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: _photos.length,
+                    separatorBuilder: (_, __) => const SizedBox(width: KwSpacing.sm),
+                    itemBuilder: (context, i) => Stack(
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(KwRadius.md),
+                          child: Image.file(
+                            File(_photos[i].path),
+                            width: 100,
+                            height: 100,
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                        Positioned(
+                          top: 4,
+                          right: 4,
+                          child: GestureDetector(
+                            onTap: () => _removePhoto(i),
+                            child: Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: const BoxDecoration(
+                                color: Colors.black54,
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.close_rounded,
+                                size: 16,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              Row(
+                children: [
+                  OutlinedButton.icon(
+                    icon: const Icon(Icons.photo_library_rounded, size: 17),
+                    label: const Text('Gallery'),
+                    onPressed: _photos.length < _maxPhotos ? _pickPhotos : null,
+                  ),
+                  const SizedBox(width: KwSpacing.md),
+                  OutlinedButton.icon(
+                    icon: const Icon(Icons.camera_alt_rounded, size: 17),
+                    label: const Text('Camera'),
+                    onPressed: _photos.length < _maxPhotos ? _takePhoto : null,
+                  ),
+                  if (_photos.isNotEmpty) ...[
+                    const SizedBox(width: KwSpacing.sm),
+                    Text(
+                      '${_photos.length}/$_maxPhotos',
+                      style: Theme.of(context).textTheme.bodySmall
+                          ?.copyWith(color: KwColors.muted),
+                    ),
+                  ],
+                ],
               ),
               const SizedBox(height: KwSpacing.lg),
 
