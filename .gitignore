@@ -1,18 +1,32 @@
-# secrets
+```
+# Dependencies
+.dart_tool/
+.build/
+packages/
+
+# Environment
 .env
-*.local
+.env.local
+*.env.*
 
-# opencode local config (contains tokens)
-opencode.json
+# Logs and temp files
+*.log
+*.tmp
+*.swp
 
-# misc
-Thumbs.db
-.DS_Store
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo
 
-# release signing (never commit)
-kaamwala/android/key.properties
-*.jks
-*.keystore
+# Build outputs
+build/
+dist/
+target/
 
-
-.kotlin/
+# Cache directories
+.cache/
+.dart_tool/
+.pub-cache/
+```
