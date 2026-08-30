@@ -10,6 +10,7 @@ import 'package:kaamwala/core/theme/app_theme.dart';
 export 'kw_button.dart';
 export 'kw_empty_state.dart';
 export 'kw_icon_well.dart';
+export 'kw_image_picker.dart';
 export 'kw_skeleton.dart';
 export 'kw_stat_card.dart';
 

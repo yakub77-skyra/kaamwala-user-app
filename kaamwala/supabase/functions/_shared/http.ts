@@ -12,6 +12,6 @@ export function json(body: unknown, status = 200): Response {
   });
 }
 
-export function fail(message: string, status = 400): Response {
-  return json({ error: message }, status);
+export function fail(message: string, status = 400, code?: string): Response {
+  return json({ error: message, code }, status);
 }

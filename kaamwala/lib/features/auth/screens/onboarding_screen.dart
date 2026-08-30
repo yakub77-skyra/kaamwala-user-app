@@ -84,7 +84,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     if (!_controller.hasClients) return;
     if (_controller.page!.round() >=
         _slidesFor(ref.read(flavorProvider)).length - 1) {
-      context.go('/login');
+      // First step of the real flow is role selection (Phase 1).
+      context.go('/role');
     } else {
       _controller.nextPage(duration: KwMotion.base, curve: KwMotion.emphasized);
     }
@@ -97,7 +98,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       appBar: AppBar(
         actions: [
           TextButton(
-            onPressed: () => context.go('/login'),
+            onPressed: () => context.go('/role'),
             child: const Text('Skip'),
           ),
         ],

@@ -42,7 +42,7 @@ class WorkersRepository {
         // PostgREST embed filtering on users.name (safe: parameterised).
         query = query.ilike('users.name', '%$q%');
       }
-      
+
       // Apply sorting
       if (userLat != null && userLng != null) {
         // Distance sorting - use PostGIS if available, otherwise sort client-side
@@ -84,7 +84,7 @@ class WorkersRepository {
       if (city != null && city.isNotEmpty) {
         query = query.eq('city', city);
       }
-      
+
       if (userLat != null && userLng != null) {
         final rows = await query.limit(50);
         final workers = [for (final r in rows) Worker.fromMap(r)];

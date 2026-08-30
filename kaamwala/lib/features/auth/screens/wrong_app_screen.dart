@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kaamwala/core/config/app_flavor.dart';
 import 'package:kaamwala/core/theme/app_theme.dart';
 import 'package:kaamwala/features/auth/providers/auth_controller.dart';
+import 'package:kaamwala/features/auth/providers/onboarding_controller.dart';
 
 class WrongAppScreen extends ConsumerWidget {
   const WrongAppScreen({super.key});
@@ -63,8 +64,10 @@ class WrongAppScreen extends ConsumerWidget {
               ),
               const SizedBox(height: KwSpacing.xxl),
               FilledButton.icon(
-                onPressed: () =>
-                    ref.read(authControllerProvider.notifier).signOut(),
+                onPressed: () {
+                  ref.read(onboardingControllerProvider.notifier).reset();
+                  ref.read(authControllerProvider.notifier).signOut();
+                },
                 icon: const Icon(Icons.logout_rounded),
                 label: const Text('Use a different number'),
               ),

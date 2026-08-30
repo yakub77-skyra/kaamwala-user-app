@@ -14,7 +14,6 @@ import 'package:kaamwala/core/ui/core_ui.dart';
 import 'package:kaamwala/features/auth/providers/auth_controller.dart';
 import 'package:kaamwala/features/client/providers/client_providers.dart';
 import 'package:kaamwala/features/shared/widgets/common_widgets.dart';
-import 'package:kaamwala/services/location_service.dart';
 
 enum WorkerSort { rating, priceLowHigh, priceHighLow, distance }
 
@@ -52,7 +51,9 @@ class _WorkerListScreenState extends ConsumerState<WorkerListScreen> {
       if (permission == LocationPermission.whileInUse ||
           permission == LocationPermission.always) {
         final pos = await Geolocator.getCurrentPosition(
-          locationSettings: const LocationSettings(accuracy: LocationAccuracy.low),
+          locationSettings: const LocationSettings(
+            accuracy: LocationAccuracy.low,
+          ),
         );
         if (mounted) setState(() => _userPosition = pos);
       }
@@ -100,8 +101,18 @@ class _WorkerListScreenState extends ConsumerState<WorkerListScreen> {
       case WorkerSort.distance:
         if (_userPosition != null) {
           sorted.sort((a, b) {
-            final da = a.distanceKmFrom(_userPosition!.latitude, _userPosition!.longitude) ?? double.infinity;
-            final db = b.distanceKmFrom(_userPosition!.latitude, _userPosition!.longitude) ?? double.infinity;
+            final da =
+                a.distanceKmFrom(
+                  _userPosition!.latitude,
+                  _userPosition!.longitude,
+                ) ??
+                double.infinity;
+            final db =
+                b.distanceKmFrom(
+                  _userPosition!.latitude,
+                  _userPosition!.longitude,
+                ) ??
+                double.infinity;
             return da.compareTo(db);
           });
         }
@@ -159,7 +170,9 @@ class _WorkerListScreenState extends ConsumerState<WorkerListScreen> {
                 value: WorkerSort.distance,
                 enabled: _userPosition != null,
                 child: Text(
-                  _userPosition != null ? 'Nearest first' : 'Nearest first (enable location)',
+                  _userPosition != null
+                      ? 'Nearest first'
+                      : 'Nearest first (enable location)',
                 ),
               ),
             ],
@@ -251,8 +264,12 @@ class _WorkerListScreenState extends ConsumerState<WorkerListScreen> {
                       itemBuilder: (context, i) {
                         final w = sorted[i];
                         double? distance;
-                        if (_sort == WorkerSort.distance && _userPosition != null) {
-                          distance = w.distanceKmFrom(_userPosition!.latitude, _userPosition!.longitude);
+                        if (_sort == WorkerSort.distance &&
+                            _userPosition != null) {
+                          distance = w.distanceKmFrom(
+                            _userPosition!.latitude,
+                            _userPosition!.longitude,
+                          );
                         }
                         return WorkerCard(
                           worker: w,

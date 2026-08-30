@@ -29,15 +29,13 @@ class WorkerJobsController extends AsyncNotifier<List<Booking>> {
     state = await AsyncValue.guard(() => build());
   }
 
-  /// Accept moves pending -> accepted and opens the active-job screen.
+  /// Accept moves pending_acceptance -> accepted and opens the active-job
+  /// screen. The DB guard validates the transition (legacy 'pending' rows
+  /// still work).
   Future<bool> accept(Booking b) async {
     final res = await ref
         .read(workerRepoProvider)
-        .updateStatus(
-          b.id,
-          BookingStatus.accepted,
-          expectedFrom: BookingStatus.pending,
-        );
+        .updateStatus(b.id, BookingStatus.accepted);
     final ok = res is Success;
     if (ok) {
       await AnalyticsService.logEvent('job_accepted', {'booking_id': b.id});
@@ -50,11 +48,7 @@ class WorkerJobsController extends AsyncNotifier<List<Booking>> {
   Future<void> decline(Booking b) async {
     await ref
         .read(workerRepoProvider)
-        .updateStatus(
-          b.id,
-          BookingStatus.declined,
-          expectedFrom: BookingStatus.pending,
-        );
+        .updateStatus(b.id, BookingStatus.declined);
     await refresh();
   }
 }
@@ -119,16 +113,8 @@ final completedJobsProvider =
       CompletedJobsController.new,
     );
 
-/// Single booking by id for the job detail screen (W5).
-final bookingByIdProvider = FutureProvider.autoDispose.family<Booking?, String>(
-  (ref, id) async {
-    final result = await ref.watch(workerRepoProvider).bookingById(id);
-    return switch (result) {
-      Success(:final data) => data,
-      Error() => null,
-    };
-  },
-);
+/// Single booking by id for the job detail screen (W5) - defined in
+/// client_providers (both sides are participants and can read it).
 
 /// Dashboard aggregates (W3): counts + sums over server-stored values.
 class WorkerDashboardStats {

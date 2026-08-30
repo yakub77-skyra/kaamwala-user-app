@@ -19,22 +19,61 @@ void main() {
     test('onboarding allows only /onboarding', () {
       expect(appRedirect(AppStage.onboarding, '/onboarding'), isNull);
       expect(appRedirect(AppStage.onboarding, '/home'), '/onboarding');
-      expect(appRedirect(AppStage.onboarding, '/login'), '/onboarding');
-    });
-
-    test('login allows any /login* route (incl. OTP)', () {
-      expect(appRedirect(AppStage.login, '/login'), isNull);
-      expect(appRedirect(AppStage.login, '/login/otp'), isNull);
-      expect(appRedirect(AppStage.login, '/home'), '/login');
-      expect(appRedirect(AppStage.login, '/w/home'), '/login');
-      expect(appRedirect(AppStage.login, '/role'), '/login');
+      expect(appRedirect(AppStage.onboarding, '/login/phone'), '/onboarding');
     });
 
     test('roleSelection pins to /role', () {
       expect(appRedirect(AppStage.roleSelection, '/role'), isNull);
       expect(appRedirect(AppStage.roleSelection, '/home'), '/role');
+      expect(appRedirect(AppStage.roleSelection, '/login/phone'), '/role');
       expect(appRedirect(AppStage.roleSelection, '/login/otp'), '/role');
     });
+
+    test('phoneEntry pins to /login/phone', () {
+      expect(appRedirect(AppStage.phoneEntry, '/login/phone'), isNull);
+      expect(appRedirect(AppStage.phoneEntry, '/home'), '/login/phone');
+      expect(appRedirect(AppStage.phoneEntry, '/role'), '/login/phone');
+      expect(appRedirect(AppStage.phoneEntry, '/login/otp'), '/login/phone');
+    });
+
+    test('worker cannot bypass phone number (no /w/* before verification)', () {
+      // A fresh worker who has NOT verified a phone is in phoneEntry stage:
+      // any attempt to jump into the worker area is pinned back to /login/phone.
+      expect(appRedirect(AppStage.phoneEntry, '/w/register'), '/login/phone');
+      expect(appRedirect(AppStage.phoneEntry, '/w/home'), '/login/phone');
+      expect(appRedirect(AppStage.phoneEntry, '/w/jobs'), '/login/phone');
+    });
+
+    test('worker registration only reachable once in the worker app', () {
+      expect(
+        appRedirect(
+          AppStage.workerApp,
+          '/w/register',
+          flavor: AppFlavor.partner,
+        ),
+        isNull,
+      );
+      // Client in the worker binary cannot reach registration either.
+      expect(
+        appRedirect(
+          AppStage.clientApp,
+          '/w/register',
+          flavor: AppFlavor.partner,
+        ),
+        '/wrong-app',
+      );
+    });
+
+    test(
+      'otpVerification pins to /login/otp (phone allowed for change number)',
+      () {
+        expect(appRedirect(AppStage.otpVerification, '/login/otp'), isNull);
+        expect(appRedirect(AppStage.otpVerification, '/home'), '/login/otp');
+        expect(appRedirect(AppStage.otpVerification, '/role'), '/login/otp');
+        // "Change number" must not be a dead-end (Phase 1 fix).
+        expect(appRedirect(AppStage.otpVerification, '/login/phone'), isNull);
+      },
+    );
 
     test('clientApp: app routes pass, auth/splash/worker routes -> /home', () {
       for (final ok in [
@@ -52,7 +91,7 @@ void main() {
       }
       for (final blocked in [
         '/',
-        '/login',
+        '/login/phone',
         '/login/otp',
         '/role',
         '/onboarding',
@@ -84,7 +123,8 @@ void main() {
       }
       for (final blocked in [
         '/',
-        '/login',
+        '/login/phone',
+        '/login/otp',
         '/role',
         '/onboarding',
         '/home',
@@ -151,7 +191,10 @@ void main() {
 
     test('auth stages are flavor-agnostic', () {
       for (final flavor in AppFlavor.values) {
-        expect(appRedirect(AppStage.login, '/x', flavor: flavor), '/login');
+        expect(
+          appRedirect(AppStage.phoneEntry, '/x', flavor: flavor),
+          '/login/phone',
+        );
         expect(
           appRedirect(AppStage.roleSelection, '/x', flavor: flavor),
           '/role',

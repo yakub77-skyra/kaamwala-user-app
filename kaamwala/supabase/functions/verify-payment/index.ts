@@ -1,17 +1,23 @@
 /**
- * verify-payment — dual mode endpoint (Phase 3 section 9):
+ * verify-payment — three mode endpoint:
  *
- * 1) Razorpay webhook  (no user JWT; authenticated by HMAC signature):
- *    - payment.captured -> orders PAID + notify worker "new job"
- *    - payment.failed   -> orders FAILED
- *    - refund.processed -> orders REFUNDED
- * 2) Authenticated refund request from the app:
- *    body: { type: "refund", booking_id }
- *    Caller must be the booking's client; booking must be cancelled
- *    and the order paid. Triggers a full refund of the Rs.20 fee.
+ * 1) Razorpay webhook (no user JWT; HMAC-authenticated):
+ *    - payment.captured -> order PAID + booking payment_status=paid,
+ *      status=pending_acceptance, payment/transaction ids stored; worker
+ *      notified ("new job").
+ *    - payment.failed   -> order FAILED + booking payment_status=failed,
+ *      status=payment_failed (retryable).
+ *    - refund.processed -> order REFUNDED + booking refund_status=processed.
+ * 2) Authenticated refund request (legacy):
+ *    body: { type: "refund", booking_id } — client of a cancelled booking.
+ * 3) Mock payment confirm (Phase 2, dev):
+ *    body: { type: "mock_confirm", booking_id } — client marks their own
+ *    booking paid, ONLY allowed when the booking's payment_provider='mock'
+ *    (created while Razorpay keys were absent). With real keys configured,
+ *    bookings are provider='razorpay' and this mode is rejected.
  *
- * Deployed with verify_jwt = false (webhooks cannot carry our JWT);
- * the two modes are separated by the x-razorpay-signature header.
+ * Deployed with verify_jwt = false (webhooks cannot carry our JWT); modes
+ * are separated by the x-razorpay-signature header / body.type.
  */
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { callerUid, serviceClient } from "./_shared/db.ts";
@@ -32,6 +38,15 @@ interface WebhookPayment {
   order_id?: string;
 }
 
+interface BookingRow {
+  id: string;
+  status: string;
+  payment_status: string;
+  payment_provider: string | null;
+}
+
+const PAYABLE_STATUSES = ["payment_pending", "payment_failed", "pending"];
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
@@ -51,9 +66,12 @@ Deno.serve(async (req) => {
       if (!valid) return fail("Invalid signature", 401);
 
       const event = JSON.parse(rawBody) as {
-        event?: string; // real Razorpay payloads use top-level "event"
+        event?: string;
         type?: string;
-        payload?: { payment?: { entity?: WebhookPayment }; refund?: { entity?: { id?: string; payment_id?: string } } };
+        payload?: {
+          payment?: { entity?: WebhookPayment };
+          refund?: { entity?: { id?: string; payment_id?: string } };
+        };
       };
       const eventType = event.event ?? event.type ?? "";
       const payment = event.payload?.payment?.entity;
@@ -72,6 +90,28 @@ Deno.serve(async (req) => {
               .update({ status: "failed" })
               .eq("razorpay_order_id", payment.order_id)
               .eq("status", "created");
+            const { data: failedRows } = await admin
+              .from("bookings")
+              .update({
+                payment_status: "failed",
+                status: "payment_failed",
+                payment_error_message: "Payment failed at the gateway",
+              })
+              .eq("payment_order_id", payment.order_id)
+              .in("status", PAYABLE_STATUSES)
+              .select("id, client_id, ref");
+            for (const row of failedRows ?? []) {
+              await admin.from("notifications").insert({
+                user_id: row.client_id,
+                type: "payment_failed",
+                title: "Payment failed",
+                body:
+                  `Your payment for ${row.ref} could not be processed. ` +
+                  "You can retry from the booking.",
+                data_json: { booking_id: row.id },
+                action_route: `/payment/${row.id}`,
+              });
+            }
           }
           break;
         }
@@ -82,6 +122,25 @@ Deno.serve(async (req) => {
               .update({ status: "refunded" })
               .eq("razorpay_order_id", payment.order_id)
               .in("status", ["paid", "failed"]);
+            const { data: refundedRows } = await admin
+              .from("bookings")
+              .update({
+                refund_status: "processed",
+                refund_message: "Refund completed by your bank",
+              })
+              .eq("payment_order_id", payment.order_id)
+              .eq("status", "cancelled")
+              .select("id, client_id, ref");
+            for (const row of refundedRows ?? []) {
+              await admin.from("notifications").insert({
+                user_id: row.client_id,
+                type: "payment",
+                title: "Refund completed",
+                body: `The refund for ${row.ref} has reached your account.`,
+                data_json: { booking_id: row.id },
+                action_route: `/booking/${row.id}`,
+              });
+            }
           }
           break;
         }
@@ -91,20 +150,18 @@ Deno.serve(async (req) => {
       return json({ received: true });
     }
 
-    // ---------- Mode 2: authenticated refund ----------
-    // rawBody is already consumed above; parse once and pass it down
-    // (re-reading req.text() throws "Body already consumed").
+    // ---------- Mode 2/3: authenticated app requests ----------
+    // rawBody is consumed above; parse once (re-reading req.text() throws).
     const parsedBody = JSON.parse(rawBody || "{}") as Record<string, unknown>;
-    if (event2IsRefund(parsedBody)) {
-      return await handleRefundRequest(admin, parsedBody as { booking_id: string });
+    if (parsedBody.type === "refund") {
+      return await handleRefundRequest(admin, req, parsedBody as { booking_id: string });
+    }
+    if (parsedBody.type === "mock_confirm") {
+      return await handleMockConfirm(admin, req, parsedBody as { booking_id: string });
     }
     return fail("Unsupported request");
   } catch (e) {
     return fail(e instanceof Error ? e.message : "Verification failed", 500);
-  }
-
-  function event2IsRefund(body: Record<string, unknown>): boolean {
-    return body.type === "refund" && typeof body.booking_id === "string";
   }
 
   async function markOrderPaid(
@@ -120,16 +177,31 @@ Deno.serve(async (req) => {
       .maybeSingle<OrderRow>();
     if (!order || order.status !== "created") return;
 
+    const paymentId = rzpPaymentId ?? order.razorpay_payment_id;
     const { error } = await admn
       .from("orders")
       .update({
         status: "paid",
-        razorpay_payment_id: rzpPaymentId ?? order.razorpay_payment_id,
+        razorpay_payment_id: paymentId,
         paid_at: new Date().toISOString(),
       })
       .eq("id", order.id)
       .eq("status", "created");
     if (error) throw new Error("Could not update order");
+
+    // Booking: paid -> waiting for worker acceptance (Phase 2 lifecycle).
+    await admn
+      .from("bookings")
+      .update({
+        payment_status: "paid",
+        status: "pending_acceptance",
+        payment_id: paymentId,
+        transaction_reference: paymentId,
+        payment_signature_verified: true,
+        payment_error_message: null,
+      })
+      .eq("id", order.booking_id)
+      .in("status", PAYABLE_STATUSES);
 
     // DB trigger inserts the worker's in-app notification on this transition.
     const { data: booking } = await admn
@@ -144,13 +216,14 @@ Deno.serve(async (req) => {
         .eq("id", booking.worker_id)
         .maybeSingle<{ user_id: string }>();
       if (wrow) {
-        await sendPushToUser(admn, wrow.user_id, "🔔 New job request!", "You have a new paid booking. Open the app to accept.", { kind: "new_job" });
+        await sendPushToUser(admn, wrow.user_id, "New job request!", "You have a new paid booking. Open the app to accept.", { kind: "new_job", route: "/w/jobs" });
       }
     }
   }
 
   async function handleRefundRequest(
     admn: ReturnType<typeof serviceClient>,
+    req: Request,
     body: { booking_id: string },
   ): Promise<Response> {
     const uid = await callerUid(req);
@@ -163,8 +236,6 @@ Deno.serve(async (req) => {
       .maybeSingle<{ id: string; client_id: string; status: string; ref: string }>();
     if (!booking) return fail("Booking not found", 404);
     if (booking.client_id !== uid) return fail("Not your booking", 403);
-    // Phase 3 hardening: refunds are only valid after a cancellation, so a
-    // stray client call can't claw back the fee while the booking stays live.
     if (booking.status !== "cancelled") return fail("Booking is not cancelled", 409);
 
     const { data: order } = await admn
@@ -185,13 +256,70 @@ Deno.serve(async (req) => {
       .eq("id", order.id)
       .in("status", ["paid"]);
 
+    await admn
+      .from("bookings")
+      .update({ refund_status: "pending", refund_message: "Refund initiated" })
+      .eq("id", booking.id);
+
     await admn.from("notifications").insert({
       user_id: uid,
       type: "payment",
-      title: "↩️ Refund initiated",
+      title: "Refund initiated",
       body: `Rs. 20 refund for ${booking.ref} is on its way to your account.`,
+      data_json: { booking_id: booking.id },
+      action_route: `/booking/${booking.id}`,
     });
 
     return json({ refunded: true, refund_id: refund.id });
+  }
+
+  async function handleMockConfirm(
+    admn: ReturnType<typeof serviceClient>,
+    req: Request,
+    body: { booking_id: string },
+  ): Promise<Response> {
+    const uid = await callerUid(req);
+    if (!uid) return fail("Unauthorized", 401);
+
+    const { data: booking } = await admn
+      .from("bookings")
+      .select("id, client_id, status, payment_status, payment_provider, ref")
+      .eq("id", body.booking_id)
+      .maybeSingle<BookingRow>();
+    if (!booking) return fail("Booking not found", 404);
+    if (booking.client_id !== uid) return fail("Not your booking", 403);
+    if (booking.payment_status === "paid") return json({ already_paid: true });
+    if (booking.payment_provider !== "mock") {
+      // Real keys configured for this booking -> mock confirm is rejected.
+      return fail("Mock payments are disabled for this booking", 403, "mock_disabled");
+    }
+    if (!PAYABLE_STATUSES.includes(booking.status)) {
+      return fail(`Booking is ${booking.status}; payment not allowed`, 409, "not_payable");
+    }
+
+    const paymentId = `mock_pay_${booking.id}`;
+    await admn
+      .from("orders")
+      .update({
+        status: "paid",
+        razorpay_payment_id: paymentId,
+        paid_at: new Date().toISOString(),
+      })
+      .eq("booking_id", booking.id)
+      .eq("status", "created");
+
+    await admn
+      .from("bookings")
+      .update({
+        payment_status: "paid",
+        status: "pending_acceptance",
+        payment_id: paymentId,
+        transaction_reference: paymentId,
+        payment_error_message: null,
+      })
+      .eq("id", booking.id)
+      .in("status", PAYABLE_STATUSES);
+
+    return json({ confirmed: true });
   }
 });

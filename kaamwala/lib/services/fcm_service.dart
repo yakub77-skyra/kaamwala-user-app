@@ -39,6 +39,25 @@ abstract final class FcmService {
     // Data-only taps are routed in app layer via getInitialMessage().
   }
 
+  /// Requests SYSTEM notification permission (Android 13+). Returns true
+  /// when authorized/provisional, or true when Firebase isn't configured
+  /// (nothing to ask - in-app notifications need no system permission).
+  /// Never throws.
+  static Future<bool> requestSystemPermission() async {
+    if (!_initialized) return true;
+    try {
+      final settings = await FirebaseMessaging.instance.requestPermission(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
+      return settings.authorizationStatus == AuthorizationStatus.authorized ||
+          settings.authorizationStatus == AuthorizationStatus.provisional;
+    } on Exception catch (_) {
+      return false;
+    }
+  }
+
   /// Device token, or null when Firebase is unavailable / permission denied.
   static Future<String?> getToken() async {
     if (!_initialized) return null;

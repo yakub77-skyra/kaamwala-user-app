@@ -43,6 +43,21 @@ class StatusPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (:fg, :bg, :icon) = switch (status) {
+      BookingStatus.paymentPending => (
+        fg: KwColors.gold,
+        bg: KwColors.goldLight,
+        icon: Icons.schedule_rounded,
+      ),
+      BookingStatus.paymentFailed => (
+        fg: KwColors.red,
+        bg: KwColors.redLight,
+        icon: Icons.payment_rounded,
+      ),
+      BookingStatus.pendingAcceptance => (
+        fg: KwColors.blue,
+        bg: KwColors.blueLight,
+        icon: Icons.hourglass_top_rounded,
+      ),
       BookingStatus.pending => (
         fg: KwColors.gold,
         bg: KwColors.goldLight,
@@ -282,7 +297,9 @@ class WorkerCard extends StatelessWidget {
                             ),
                             decoration: BoxDecoration(
                               color: KwColors.blueLight,
-                              borderRadius: BorderRadius.circular(KwRadius.chip),
+                              borderRadius: BorderRadius.circular(
+                                KwRadius.chip,
+                              ),
                             ),
                             child: Row(
                               children: [
@@ -347,7 +364,7 @@ class StatusTimeline extends StatelessWidget {
   final BookingStatus status;
 
   static const _flow = [
-    BookingStatus.pending,
+    BookingStatus.pendingAcceptance,
     BookingStatus.accepted,
     BookingStatus.traveling,
     BookingStatus.arrived,
@@ -357,16 +374,38 @@ class StatusTimeline extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (status == BookingStatus.cancelled || status == BookingStatus.declined) {
+    if (status == BookingStatus.cancelled ||
+        status == BookingStatus.declined ||
+        status == BookingStatus.paymentFailed) {
       return Row(
         children: [
           StatusPill(status: status),
           const SizedBox(width: KwSpacing.sm),
           Expanded(
             child: Text(
-              status == BookingStatus.cancelled
-                  ? 'This booking was cancelled.'
-                  : 'The worker declined this job.',
+              switch (status) {
+                BookingStatus.cancelled => 'This booking was cancelled.',
+                BookingStatus.declined => 'The worker declined this job.',
+                _ => 'Payment failed. You can retry the payment.',
+              },
+              style: Theme.of(context).textTheme.bodySmall
+                  ?.copyWith(color: KwColors.muted),
+            ),
+          ),
+        ],
+      );
+    }
+    if (status == BookingStatus.paymentPending ||
+        status == BookingStatus.pending) {
+      return Row(
+        children: [
+          StatusPill(status: status),
+          const SizedBox(width: KwSpacing.sm),
+          Expanded(
+            child: Text(
+              status == BookingStatus.paymentPending
+                  ? 'Awaiting your payment to confirm the booking.'
+                  : 'Booking created.',
               style: Theme.of(context).textTheme.bodySmall
                   ?.copyWith(color: KwColors.muted),
             ),

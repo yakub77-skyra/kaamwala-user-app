@@ -50,7 +50,7 @@ Deno.serve(async (req) => {
       .maybeSingle<{ user_id: string }>();
     if (!worker) return fail("Worker not found", 404);
 
-    const title = action === "approve" ? "🎉 Profile approved!" : "❌ Verification failed";
+    const title = action === "approve" ? "Profile approved" : "Verification failed";
     const bodyText =
       action === "approve"
         ? "You can now receive jobs. Go online from your dashboard."
@@ -58,9 +58,11 @@ Deno.serve(async (req) => {
 
     await admin.from("notifications").insert({
       user_id: worker.user_id,
-      type: "system",
+      type: action === "approve" ? "worker_approved" : "worker_rejected",
       title,
       body: bodyText,
+      data_json: { worker_id: workerId },
+      action_route: "/w/home",
     });
 
     const delivered = await sendPushToUser(admin, worker.user_id, title, bodyText, { kind: action === "approve" ? "approved" : "rejected", route: "/w/home" });

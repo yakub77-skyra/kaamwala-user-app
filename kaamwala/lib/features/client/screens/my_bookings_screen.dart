@@ -12,6 +12,8 @@ import 'package:kaamwala/core/constants/app_constants.dart';
 import 'package:kaamwala/core/error/failure.dart';
 import 'package:kaamwala/core/theme/app_theme.dart';
 import 'package:kaamwala/core/ui/core_ui.dart';
+import 'package:kaamwala/features/chat/providers/chat_providers.dart';
+import 'package:kaamwala/features/chat/widgets/chat_widgets.dart';
 import 'package:kaamwala/features/client/providers/client_providers.dart';
 import 'package:kaamwala/features/shared/widgets/common_widgets.dart';
 import 'package:kaamwala/models/booking.dart';
@@ -263,6 +265,8 @@ class _BookingCard extends StatelessWidget {
                   Text(
                     b.clientConfirmed && b.status == BookingStatus.completed
                         ? 'Paid ✓'
+                        : b.needsPayment
+                        ? 'Fee ₹${b.bookingFee.toStringAsFixed(0)}'
                         : 'Fee ₹${b.bookingFee.toStringAsFixed(0)}',
                     style: Theme.of(context).textTheme.labelMedium?.copyWith(
                       color:
@@ -274,34 +278,80 @@ class _BookingCard extends StatelessWidget {
                     ),
                   ),
                   const Spacer(),
-                  TextButton.icon(
-                    onPressed: () => context.push('/chat/${b.id}'),
-                    style: TextButton.styleFrom(
-                      visualDensity: VisualDensity.compact,
-                    ),
-                    icon: const Icon(
-                      Icons.chat_bubble_outline_rounded,
-                      size: 16,
-                    ),
-                    label: const Text('Chat'),
-                  ),
-                  const SizedBox(width: KwSpacing.xs),
-                  FilledButton(
-                    onPressed: () => context.push('/booking/${b.id}'),
-                    style: FilledButton.styleFrom(
-                      minimumSize: const Size(0, 36),
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      textStyle: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
+                  if (b.needsPayment) ...[
+                    FilledButton(
+                      onPressed: () => context.push('/payment/${b.id}'),
+                      style: FilledButton.styleFrom(
+                        minimumSize: const Size(0, 36),
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        textStyle: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      child: Text(
+                        b.status == BookingStatus.paymentFailed
+                            ? 'Retry Payment'
+                            : 'Pay Now',
                       ),
                     ),
-                    child: Text(
-                      b.status == BookingStatus.completed ? 'Details' : 'Track',
+                  ] else ...[
+                    ChatUnreadButton(bookingId: b.id),
+                    const SizedBox(width: KwSpacing.xs),
+                    FilledButton(
+                      onPressed: () => context.push('/booking/${b.id}'),
+                      style: FilledButton.styleFrom(
+                        minimumSize: const Size(0, 36),
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        textStyle: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      child: Text(
+                        b.status == BookingStatus.completed
+                            ? 'Details'
+                            : 'Track',
+                      ),
                     ),
-                  ),
+                  ],
                 ],
               ),
+              if (b.status == BookingStatus.cancelled &&
+                  b.refundNote != null) ...[
+                const SizedBox(height: KwSpacing.sm),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(
+                      Icons.undo_rounded,
+                      size: 14,
+                      color: KwColors.green,
+                    ),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        b.refundNote!,
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: KwColors.green,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+              if (b.status == BookingStatus.cancelled &&
+                  b.cancellationReason != null) ...[
+                const SizedBox(height: KwSpacing.xs),
+                Text(
+                  'Reason: ${b.cancellationReason}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.labelSmall
+                      ?.copyWith(color: KwColors.muted),
+                ),
+              ],
             ],
           ),
         ),
@@ -314,14 +364,29 @@ class BookingDetailScreen extends ConsumerWidget {
   const BookingDetailScreen({super.key, required this.bookingId});
   final String bookingId;
 
+  static const _cancelReasons = [
+    'Worker not responding',
+    'Selected wrong time',
+    'Issue already fixed',
+    'Price concern',
+    'Other',
+  ];
+
   Future<void> _cancel(BuildContext context, WidgetRef ref, Booking b) async {
+    final reason = await showDialog<String>(
+      context: context,
+      builder: (context) => _CancelReasonDialog(reasons: _cancelReasons),
+    );
+    if (reason == null || !context.mounted) return;
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Cancel booking?'),
-        content: const Text(
-          'Your ₹20 booking fee will be refunded to your original payment '
-          'method. This cannot be undone once the worker starts.',
+        content: Text(
+          'Your ₹${b.bookingFee.toStringAsFixed(0)} booking fee will be '
+          'refunded to your original payment method if you already paid. '
+          'This cannot be undone once the worker starts.',
         ),
         actions: [
           TextButton(
@@ -337,15 +402,24 @@ class BookingDetailScreen extends ConsumerWidget {
       ),
     );
     if (confirmed != true || !context.mounted) return;
-    final res = await ref.read(bookingsRepoProvider).cancel(b.id);
+    final res = await ref
+        .read(bookingsRepoProvider)
+        .cancelBooking(b.id, reason: reason);
     if (!context.mounted) return;
-    final ok = res is Success<void>;
-    if (ok) unawaited(AnalyticsService.logEvent('booking_cancelled'));
+    final ok = res is Success<CancelBookingResult>;
+    if (ok) {
+      unawaited(
+        AnalyticsService.logEvent('booking_cancelled', {
+          'reason': reason,
+          'refund': res.data.refundStatus.name,
+        }),
+      );
+    }
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
           ok
-              ? 'Booking cancelled - refund initiated'
+              ? res.data.refundMessage ?? 'Booking cancelled'
               : (res as Error).failure.message,
         ),
       ),
@@ -454,18 +528,35 @@ class BookingDetailScreen extends ConsumerWidget {
                           ],
                         ),
                       ),
-                      OutlinedButton.icon(
-                        onPressed: () => context.push('/chat/${b.id}'),
-                        style: OutlinedButton.styleFrom(
-                          minimumSize: const Size(0, 38),
-                          padding: const EdgeInsets.symmetric(horizontal: 12),
-                          textStyle: const TextStyle(fontSize: 13),
-                        ),
-                        icon: const Icon(
-                          Icons.chat_bubble_outline_rounded,
-                          size: 15,
-                        ),
-                        label: const Text('Chat'),
+                      Consumer(
+                        builder: (context, ref, _) {
+                          final unread =
+                              ref.watch(chatUnreadProvider(b.id)).valueOrNull ??
+                              0;
+                          return OutlinedButton.icon(
+                            onPressed: () async {
+                              await context.push('/chat/${b.id}');
+                              ref.invalidate(chatUnreadProvider(b.id));
+                            },
+                            style: OutlinedButton.styleFrom(
+                              minimumSize: const Size(0, 38),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                              ),
+                              textStyle: const TextStyle(fontSize: 13),
+                            ),
+                            icon: Badge(
+                              isLabelVisible: unread > 0,
+                              backgroundColor: KwColors.red,
+                              label: Text('$unread'),
+                              child: const Icon(
+                                Icons.chat_bubble_outline_rounded,
+                                size: 15,
+                              ),
+                            ),
+                            label: const Text('Chat'),
+                          );
+                        },
                       ),
                     ],
                   ),
@@ -542,6 +633,55 @@ class BookingDetailScreen extends ConsumerWidget {
                           ' • ₹${b.bookingFee.toStringAsFixed(0)} booking fee',
                         ),
                       ),
+                      // ---------- payment / refund info ----------
+                      if (b.needsPayment) ...[
+                        const Divider(),
+                        ListTile(
+                          leading: const Icon(Icons.payment_rounded),
+                          title: Text(
+                            b.status == BookingStatus.paymentFailed
+                                ? 'Payment failed'
+                                : 'Payment pending',
+                          ),
+                          subtitle: const Text(
+                            'You can pay anytime from here or My Bookings.',
+                          ),
+                          trailing: FilledButton(
+                            onPressed: () => context.push('/payment/${b.id}'),
+                            child: Text(
+                              b.status == BookingStatus.paymentFailed
+                                  ? 'Retry Payment'
+                                  : 'Pay Now',
+                            ),
+                          ),
+                        ),
+                      ],
+                      if (b.status == BookingStatus.cancelled &&
+                          b.refundNote != null) ...[
+                        const Divider(),
+                        ListTile(
+                          leading: const Icon(
+                            Icons.undo_rounded,
+                            color: KwColors.green,
+                          ),
+                          title: const Text('Refund'),
+                          subtitle: Text(
+                            b.refundNote!,
+                            style: const TextStyle(color: KwColors.green),
+                          ),
+                        ),
+                      ],
+                      if (b.paymentStatus == PaymentStatus.paid &&
+                          b.transactionReference != null) ...[
+                        const Divider(),
+                        ListTile(
+                          leading: const Icon(
+                            Icons.confirmation_number_outlined,
+                          ),
+                          title: const Text('Transaction reference'),
+                          subtitle: Text(b.transactionReference!),
+                        ),
+                      ],
                       // ---------- photos ----------
                       if (b.photoUrls.isNotEmpty) ...[
                         const Divider(),
@@ -554,9 +694,12 @@ class BookingDetailScreen extends ConsumerWidget {
                           height: 80,
                           child: ListView.separated(
                             scrollDirection: Axis.horizontal,
-                            padding: const EdgeInsets.symmetric(horizontal: KwSpacing.lg),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: KwSpacing.lg,
+                            ),
                             itemCount: b.photoUrls.length,
-                            separatorBuilder: (_, __) => const SizedBox(width: KwSpacing.sm),
+                            separatorBuilder: (_, _) =>
+                                const SizedBox(width: KwSpacing.sm),
                             itemBuilder: (context, i) => ClipRRect(
                               borderRadius: BorderRadius.circular(KwRadius.sm),
                               child: Image.network(
@@ -564,11 +707,14 @@ class BookingDetailScreen extends ConsumerWidget {
                                 width: 80,
                                 height: 80,
                                 fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) => Container(
+                                errorBuilder: (_, _, _) => Container(
                                   width: 80,
                                   height: 80,
                                   color: KwColors.fill,
-                                  child: const Icon(Icons.broken_image_outlined, size: 20),
+                                  child: const Icon(
+                                    Icons.broken_image_outlined,
+                                    size: 20,
+                                  ),
                                 ),
                               ),
                             ),
@@ -587,8 +733,8 @@ class BookingDetailScreen extends ConsumerWidget {
                   width: double.infinity,
                   child: OutlinedButton.icon(
                     icon: const Icon(Icons.close_rounded, size: 18),
-                    label: const Text(
-                      'Cancel Booking (full ₹${AppConstants.bookingFeeRupees} refund)',
+                    label: Text(
+                      'Cancel Booking (full ₹${b.bookingFee.toStringAsFixed(0)} refund)',
                     ),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: KwColors.red,
@@ -621,6 +767,57 @@ class BookingDetailScreen extends ConsumerWidget {
           );
         },
       ),
+    );
+  }
+}
+
+/// Cancellation reason picker (task 13) - returns the chosen reason.
+class _CancelReasonDialog extends StatefulWidget {
+  const _CancelReasonDialog({required this.reasons});
+  final List<String> reasons;
+
+  @override
+  State<_CancelReasonDialog> createState() => _CancelReasonDialogState();
+}
+
+class _CancelReasonDialogState extends State<_CancelReasonDialog> {
+  String? _selected;
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Why are you cancelling?'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (final r in widget.reasons)
+            ListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(
+                _selected == r
+                    ? Icons.radio_button_checked_rounded
+                    : Icons.radio_button_off_rounded,
+                size: 20,
+                color: _selected == r ? KwColors.primary : KwColors.muted,
+              ),
+              title: Text(r),
+              onTap: () => setState(() => _selected = r),
+            ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Back'),
+        ),
+        FilledButton(
+          onPressed: _selected == null
+              ? null
+              : () => Navigator.pop(context, _selected),
+          child: const Text('Continue'),
+        ),
+      ],
     );
   }
 }
@@ -739,9 +936,8 @@ class _LiveLocationCardState extends ConsumerState<_LiveLocationCard> {
                         child: Text(
                           'Lat: ${b.liveLat!.toStringAsFixed(6)}, '
                           'Lng: ${b.liveLng!.toStringAsFixed(6)}',
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            fontFamily: 'monospace',
-                          ),
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(fontFamily: 'monospace'),
                         ),
                       ),
                     ],
@@ -757,16 +953,13 @@ class _LiveLocationCardState extends ConsumerState<_LiveLocationCard> {
                       const SizedBox(width: 4),
                       Text(
                         ago,
-                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: KwColors.muted,
-                        ),
+                        style: Theme.of(context).textTheme.labelSmall
+                            ?.copyWith(color: KwColors.muted),
                       ),
                       const Spacer(),
                       TextButton.icon(
                         onPressed: () {
-                          final url = 'https://www.google.com/maps/search/?api=1&query='
-                              '${b.liveLat},${b.liveLng}';
-                          // Using url_launcher would be ideal here
+                          // TODO(Phase 2): open maps with url_launcher.
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
                               content: Text('Opening map...'),

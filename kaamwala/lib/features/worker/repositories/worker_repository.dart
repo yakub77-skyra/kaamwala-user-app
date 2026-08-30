@@ -2,34 +2,38 @@
 library;
 
 import 'dart:async';
-import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:kaamwala/core/constants/app_constants.dart';
 import 'package:kaamwala/core/error/failure.dart';
+import 'package:kaamwala/features/worker/models/worker_registration.dart';
 import 'package:kaamwala/models/booking.dart';
 import 'package:kaamwala/services/supabase_service.dart';
 
-class WorkerRegistrationData {
-  String name = '';
-  String city = '';
-  String category = '';
-  int priceMin = 300;
-  Uint8List? aadharFrontBytes;
-  Uint8List? aadharBackBytes;
-
-  /// Optional work photos (max 5, CS-05) -> PUBLIC portfolios bucket.
-  final List<Uint8List> portfolioBytes = [];
-}
+export 'package:kaamwala/features/worker/models/worker_registration.dart'
+    show WorkerRegistrationData;
 
 class WorkerRepository {
   const WorkerRepository();
 
-  /// Step 3 submit: uploads Aadhar to PRIVATE bucket then inserts row with
-  /// approval_status=pending (FR-WORKER-01 / NFR-SEC-05).
-  Future<Result<void>> submitRegistration(WorkerRegistrationData d) async {
-    if (!SupabaseService.isReady) return const Success(null);
+  /// Step 4 submit: uploads Aadhaar to PRIVATE bucket, work photos to the
+  /// PUBLIC portfolios bucket, syncs name/city to users, then inserts the
+  /// workers row with approval_status=pending (FR-WORKER-01 / NFR-SEC-05).
+  ///
+  /// [demoMode] (mock SMS flow without a real session) records nothing and
+  /// reports success so the on-device flow stays navigable in dev.
+  Future<Result<void>> submitRegistration(
+    WorkerRegistrationData d, {
+    bool demoMode = false,
+  }) async {
+    if (demoMode || !SupabaseService.isReady) {
+      debugPrint(
+        '🔧 [MOCK] Worker registration submitted (demoMode=$demoMode)',
+      );
+      return const Success(null);
+    }
     final uid = SupabaseService.currentUserId;
     if (uid == null) return const Error(AuthFailure());
     try {
@@ -62,9 +66,16 @@ class WorkerRepository {
         }
       }
 
+      // Name/city live on users (name is NOT a workers column) - keep the
+      // registration form as the source of truth for both.
+      await SupabaseService.client
+          .from('users')
+          .update({'name': d.name.trim(), 'city': d.city.trim()})
+          .eq('id', uid);
+
       await SupabaseService.client.from('workers').upsert({
         'user_id': uid,
-        'city': d.city,
+        'city': d.city.trim(),
         'category': d.category,
         'price_min': d.priceMin,
         'approval_status': 'pending',
@@ -94,11 +105,14 @@ class WorkerRepository {
     }
   }
 
-  /// Pending bookings assigned to me (FR-WORKER-04).
+  /// Paid bookings awaiting my acceptance (FR-WORKER-04). Phase 2: only
+  /// bookings whose payment succeeded show up (pending_acceptance); legacy
+  /// 'pending' rows are included for backward compatibility.
   /// RLS scopes rows to the signed-in worker (0002 bookings_select_participants);
   /// client name is embedded via FK so Booking.fromMap picks it up.
-  Future<Result<List<Booking>>> pendingJobs() =>
-      myBookings(statuses: [BookingStatus.pending]);
+  Future<Result<List<Booking>>> pendingJobs() => myBookings(
+    statuses: [BookingStatus.pendingAcceptance, BookingStatus.pending],
+  );
 
   /// Bookings for this worker filtered by status - dashboard, active jobs,
   /// earnings all read from here. Money fields are server-computed values
@@ -172,7 +186,7 @@ class WorkerRepository {
         query = query.eq('status', expectedFrom.dbValue);
       }
       await query;
-      
+
       // Send push notification to client for status changes
       if (s != expectedFrom) {
         unawaited(_sendStatusPush(bookingId, s));
@@ -205,7 +219,7 @@ class WorkerRepository {
         default:
           return; // Don't send for other statuses
       }
-      
+
       await SupabaseService.client.functions.invoke(
         'send-push',
         body: {'kind': kind, 'booking_id': bookingId},

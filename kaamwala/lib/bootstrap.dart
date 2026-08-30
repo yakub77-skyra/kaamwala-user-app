@@ -19,6 +19,8 @@ import 'package:kaamwala/core/env/env.dart';
 import 'package:kaamwala/core/routing/app_router.dart';
 import 'package:kaamwala/core/theme/app_theme.dart';
 import 'package:kaamwala/features/auth/providers/auth_controller.dart';
+import 'package:kaamwala/features/notifications/providers/notification_providers.dart';
+import 'package:kaamwala/features/notifications/widgets/in_app_banner.dart';
 import 'package:kaamwala/features/shared/providers/connectivity_provider.dart';
 import 'package:kaamwala/services/analytics_service.dart';
 import 'package:kaamwala/services/fcm_service.dart';
@@ -139,24 +141,49 @@ class _KaamWalaAppState extends ConsumerState<KaamWalaApp> {
   Widget build(BuildContext context) {
     final router = ref.watch(routerProvider);
     final flavor = ref.watch(flavorProvider);
+    // Notification taps before login park a route; consume it once the user
+    // is authenticated (deep link from notification center / banner).
+    ref.listen(authControllerProvider, (prev, next) {
+      if (prev?.stage == next.stage) return;
+      final authed =
+          next.stage == AppStage.clientApp || next.stage == AppStage.workerApp;
+      if (!authed) return;
+      final pending = ref.read(pendingDeepLinkProvider);
+      if (pending == null) return;
+      ref.read(pendingDeepLinkProvider.notifier).state = null;
+      final ctx = rootNavigatorKey.currentContext;
+      if (ctx != null) ctx.go(pending);
+    });
     return MaterialApp.router(
       title: flavor.appName,
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(),
       routerConfig: router,
-      builder: (context, child) => _OfflineBoundary(child: child),
+      builder: (context, child) => _OfflineBoundary(
+        child: _PermissionGateHost(
+          child: InAppBannerHost(child: child ?? const SizedBox.shrink()),
+        ),
+      ),
       localizationsDelegates: const [
         AppLocalizations.delegate,
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
-      supportedLocales: const [
-        Locale('en'),
-        Locale('hi'),
-        Locale('mr'),
-      ],
+      supportedLocales: const [Locale('en'), Locale('hi'), Locale('mr')],
     );
+  }
+}
+
+/// Hosts the Phase 3 notification permission gate next to the app content.
+class _PermissionGateHost extends ConsumerWidget {
+  const _PermissionGateHost({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Stack(children: [child, const NotificationPermissionGate()]);
   }
 }
 

@@ -64,12 +64,67 @@ void main() {
       },
     );
 
-    test('unknown/missing status falls back to pending', () {
+    test('unknown/missing status falls back to payment_pending', () {
       expect(
         Booking.fromMap({'id': 'x', 'status': 'weird'}).status,
+        BookingStatus.paymentPending,
+      );
+      expect(Booking.fromMap({'id': 'x'}).status, BookingStatus.paymentPending);
+      // Legacy 'pending' rows still parse as pending (Phase 1 compat).
+      expect(
+        Booking.fromMap({'id': 'x', 'status': 'pending'}).status,
         BookingStatus.pending,
       );
-      expect(Booking.fromMap({'id': 'x'}).status, BookingStatus.pending);
+    });
+
+    test('payment fields parse from row', () {
+      final b = Booking.fromMap({
+        'id': 'x',
+        'status': 'pending_acceptance',
+        'payment_status': 'paid',
+        'payment_provider': 'razorpay',
+        'payment_order_id': 'order_X',
+        'payment_id': 'pay_Y',
+        'payment_signature_verified': true,
+        'amount_paise': 2000,
+        'booking_fee_paise': 2000,
+        'estimated_min_paise': 30000,
+        'estimated_max_paise': 80000,
+        'payment_attempts': 2,
+        'payment_error_message': 'declined',
+        'payment_expires_at': '2026-08-25T07:30:00Z',
+        'transaction_reference': 'pay_Y',
+        'cancellation_reason': 'Worker not responding',
+        'cancelled_at': '2026-08-25T08:00:00Z',
+        'refund_status': 'pending',
+        'refund_message': 'Refund initiated',
+      });
+      expect(b.status, BookingStatus.pendingAcceptance);
+      expect(b.paymentStatus, PaymentStatus.paid);
+      expect(b.paymentProvider, 'razorpay');
+      expect(b.paymentOrderId, 'order_X');
+      expect(b.paymentId, 'pay_Y');
+      expect(b.paymentSignatureVerified, isTrue);
+      expect(b.amountPaise, 2000);
+      expect(b.bookingFeePaise, 2000);
+      expect(b.estimateMinPaise, 30000);
+      expect(b.paymentAttempts, 2);
+      expect(b.paymentErrorMessage, 'declined');
+      expect(b.paymentExpiresAt, isNotNull);
+      expect(b.transactionReference, 'pay_Y');
+      expect(b.cancellationReason, 'Worker not responding');
+      expect(b.cancelledAt, isNotNull);
+      expect(b.refundStatus, RefundStatus.pending);
+      expect(b.refundMessage, 'Refund initiated');
+      expect(b.needsPayment, isFalse);
+    });
+
+    test('missing payment fields default safely', () {
+      final b = Booking.fromMap({'id': 'x'});
+      expect(b.paymentStatus, PaymentStatus.pending);
+      expect(b.paymentAttempts, 0);
+      expect(b.refundStatus, isNull);
+      expect(b.amountPaise, isNull);
     });
 
     test('missing embeds yield empty names, not crashes', () {
@@ -92,6 +147,9 @@ void main() {
       expect(BookingStatus.cancelled.isActive, isFalse);
       expect(BookingStatus.declined.isActive, isFalse);
       for (final s in [
+        BookingStatus.paymentPending,
+        BookingStatus.paymentFailed,
+        BookingStatus.pendingAcceptance,
         BookingStatus.pending,
         BookingStatus.accepted,
         BookingStatus.traveling,
@@ -101,12 +159,34 @@ void main() {
         expect(s.isActive, isTrue);
       }
     });
+
+    test('occupiesSlot covers the booking window', () {
+      expect(BookingStatus.paymentPending.occupiesSlot, isTrue);
+      expect(BookingStatus.paymentFailed.occupiesSlot, isTrue);
+      expect(BookingStatus.pendingAcceptance.occupiesSlot, isTrue);
+      expect(BookingStatus.inProgress.occupiesSlot, isTrue);
+      expect(BookingStatus.completed.occupiesSlot, isFalse);
+      expect(BookingStatus.cancelled.occupiesSlot, isFalse);
+      expect(BookingStatus.declined.occupiesSlot, isFalse);
+    });
   });
 
   group('cancel gating', () {
-    test('canCancel only while pending', () {
+    test('canCancel before worker acceptance (Phase 2 states)', () {
       expect(
         Booking.fromMap({'id': 'x', 'status': 'pending'}).canCancel,
+        isTrue,
+      );
+      expect(
+        Booking.fromMap({'id': 'x', 'status': 'payment_pending'}).canCancel,
+        isTrue,
+      );
+      expect(
+        Booking.fromMap({'id': 'x', 'status': 'payment_failed'}).canCancel,
+        isTrue,
+      );
+      expect(
+        Booking.fromMap({'id': 'x', 'status': 'pending_acceptance'}).canCancel,
         isTrue,
       );
       expect(
@@ -114,6 +194,90 @@ void main() {
         isFalse,
       );
       expect(_fullRow().canCancel, isFalse); // in_progress
+    });
+
+    test('needsPayment only for unpaid pre-acceptance states', () {
+      expect(
+        Booking.fromMap({'id': 'x', 'status': 'payment_pending'}).needsPayment,
+        isTrue,
+      );
+      expect(
+        Booking.fromMap({'id': 'x', 'status': 'payment_failed'}).needsPayment,
+        isTrue,
+      );
+      expect(
+        Booking.fromMap({'id': 'x', 'status': 'pending_acceptance'})
+            .needsPayment,
+        isFalse,
+      );
+      expect(
+        Booking.fromMap({'id': 'x', 'status': 'completed'}).needsPayment,
+        isFalse,
+      );
+    });
+
+    test('refundNote only on cancelled bookings', () {
+      final cancelled = Booking.fromMap({
+        'id': 'x',
+        'status': 'cancelled',
+        'refund_status': 'pending',
+        'refund_message': 'Refund initiated — 3-5 business days',
+      });
+      expect(cancelled.refundNote, contains('3-5 business days'));
+      expect(
+        Booking.fromMap({
+          'id': 'x',
+          'status': 'cancelled',
+          'refund_status': 'processed',
+        }).refundNote,
+        'Refund completed',
+      );
+      // Never paid -> no refund note.
+      expect(
+        Booking.fromMap({'id': 'x', 'status': 'cancelled'}).refundNote,
+        isNull,
+      );
+      // Active booking -> no note.
+      expect(_fullRow().refundNote, isNull);
+    });
+  });
+
+  group('BookingOrderDraft.fromMap', () {
+    test('parses server order response incl. mock flag', () {
+      final d = BookingOrderDraft.fromMap({
+        'order_id': 'mock_b1',
+        'amount': 2000,
+        'currency': 'INR',
+        'booking_id': 'b1',
+        'booking_ref': 'KW-2026-0001',
+        'mock': true,
+      });
+      expect(d.orderId, 'mock_b1');
+      expect(d.amountPaise, 2000);
+      expect(d.bookingId, 'b1');
+      expect(d.mock, isTrue);
+      expect(d.keyId, '');
+    });
+  });
+
+  group('BookingPaymentStatus.fromMap', () {
+    test('parses paid state with references', () {
+      final s = BookingPaymentStatus.fromMap({
+        'booking_id': 'b1',
+        'booking_ref': 'KW-2026-0001',
+        'status': 'pending_acceptance',
+        'payment_status': 'paid',
+        'paid': true,
+        'mock': false,
+        'amount_paise': 2000,
+        'payment_id': 'pay_X',
+        'transaction_reference': 'pay_X',
+      });
+      expect(s.paid, isTrue);
+      expect(s.status, BookingStatus.pendingAcceptance);
+      expect(s.paymentStatus, PaymentStatus.paid);
+      expect(s.transactionReference, 'pay_X');
+      expect(s.mock, isFalse);
     });
   });
 

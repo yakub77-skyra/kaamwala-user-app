@@ -2,6 +2,7 @@
 library;
 
 import 'package:kaamwala/core/constants/app_constants.dart';
+
 import 'dart:math';
 
 enum ApprovalStatus { pending, approved, rejected }
@@ -68,7 +69,8 @@ class Worker {
     const r = 6371; // Earth radius in km
     final dLat = _toRad(refLat - lat!);
     final dLng = _toRad(refLng - lng!);
-    final a = sin(dLat / 2) * sin(dLat / 2) +
+    final a =
+        sin(dLat / 2) * sin(dLat / 2) +
         cos(_toRad(lat!)) * cos(_toRad(refLat)) * sin(dLng / 2) * sin(dLng / 2);
     final c = 2 * atan2(sqrt(a), sqrt(1 - a));
     return r * c;

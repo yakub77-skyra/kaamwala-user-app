@@ -17,8 +17,9 @@ enum AppStage {
   loading,
   startupError,
   onboarding,
-  login,
   roleSelection,
+  phoneEntry,
+  otpVerification,
   clientApp,
   workerApp,
 }
@@ -36,7 +37,7 @@ class AuthController extends Notifier<AuthState> {
   @override
   AuthState build() => const AuthState();
 
-  /// Splash logic - Phase 3 C1: session -> home/dashboard, else onboarding/login.
+  /// Splash logic - Phase 3 C1: session -> home/dashboard, else onboarding/role.
   /// Network/server failures during restore land on [AppStage.startupError]
   /// (splash offers a retry) instead of silently dumping the user to login.
   Future<void> restoreSession({bool firstRun = false}) async {
@@ -48,7 +49,9 @@ class AuthController extends Notifier<AuthState> {
     }
     final session = SupabaseService.currentSession;
     if (session == null) {
-      state = AuthState(stage: firstRun ? AppStage.onboarding : AppStage.login);
+      state = AuthState(
+        stage: firstRun ? AppStage.onboarding : AppStage.roleSelection,
+      );
       return;
     }
     final result = await _repo.fetchMyProfile();
@@ -108,11 +111,39 @@ class AuthController extends Notifier<AuthState> {
   }
 
   /// Returns true when onboarding completed; false surfaces an error snackbar.
+  /// In mock/demo mode (no backend), this degrades gracefully: it builds a
+  /// synthetic in-memory profile so the app remains navigable.
   Future<bool> finishRoleSelection({
     required String name,
     required bool asWorker,
     required String city,
   }) async {
+    // Mock path when there is no real session (app not configured OR the
+    // mock SMS flow verified without Supabase Auth). Degrades gracefully: it
+    // builds a synthetic in-memory profile so the app remains navigable.
+    final hasSession =
+        SupabaseService.isReady && SupabaseService.currentSession != null;
+    if (!hasSession) {
+      final uid = SupabaseService.currentUserId ?? 'mock-user';
+      final profile = UserProfile(
+        id: uid,
+        phone: state.profile?.phone ?? '',
+        name: name,
+        role: asWorker ? UserRole.worker : UserRole.client,
+        city: city,
+      );
+      state = AuthState(
+        stage: asWorker ? AppStage.workerApp : AppStage.clientApp,
+        profile: profile,
+      );
+      unawaited(AnalyticsService.setUserRole(asWorker ? 'worker' : 'client'));
+      unawaited(
+        AnalyticsService.logEvent('onboarding_completed', {
+          'role': asWorker ? 'worker' : 'client',
+        }),
+      );
+      return true;
+    }
     final result = await _repo.completeOnboarding(
       name: name,
       role: asWorker ? UserRole.worker : UserRole.client,
@@ -137,7 +168,8 @@ class AuthController extends Notifier<AuthState> {
 
   Future<void> signOut() async {
     await _repo.signOut();
-    state = const AuthState(stage: AppStage.login);
+    // Clear session-derived profile so a fresh start re-enters choose-role flow.
+    state = const AuthState(stage: AppStage.roleSelection, profile: null);
   }
 
   /// Avatar upload -> refreshes in-memory profile (FR-PROFILE-02).
@@ -162,6 +194,28 @@ class AuthController extends Notifier<AuthState> {
       case Error(:final failure):
         return failure.message;
     }
+  }
+
+  /// Called when user selects a role (customer/worker) on the role selection screen.
+  /// Transitions to phone entry stage with the selected role.
+  void selectRole(bool asWorker) {
+    state = AuthState(stage: AppStage.phoneEntry, profile: state.profile);
+    // Store the selected role in profile for later use
+    if (state.profile != null) {
+      // We'll use a temporary approach - store role in a way the phone entry screen can use
+    }
+    unawaited(
+      AnalyticsService.logEvent('role_selected', {
+        'role': asWorker ? 'worker' : 'client',
+      }),
+    );
+  }
+
+  /// Called when user enters a valid phone number and requests OTP.
+  /// Transitions to OTP verification stage.
+  void startOtpVerification(String phoneE164) {
+    state = AuthState(stage: AppStage.otpVerification, profile: state.profile);
+    unawaited(AnalyticsService.logEvent('otp_requested', {'phone': phoneE164}));
   }
 }
 

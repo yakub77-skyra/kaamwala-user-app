@@ -10,7 +10,7 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:kaamwala/features/client/providers/client_providers.dart';
-import 'package:kaamwala/features/shared/providers/shared_providers.dart';
+import 'package:kaamwala/features/notifications/providers/notification_providers.dart';
 import 'package:kaamwala/features/worker/providers/worker_providers.dart';
 
 /// True = assume online. Never blocks UI; failures still surface via
@@ -41,9 +41,8 @@ class ConnectivityController extends Notifier<bool> {
 
   void _refreshAll() {
     ref.invalidate(topRatedWorkersProvider);
-    ref.invalidate(unreadCountProvider);
     ref.invalidate(myBookingsProvider);
-    ref.invalidate(notificationsProvider);
+    ref.invalidate(notificationCenterProvider);
     ref.invalidate(workerJobsProvider);
     ref.invalidate(activeJobsProvider);
     ref.invalidate(completedJobsProvider);

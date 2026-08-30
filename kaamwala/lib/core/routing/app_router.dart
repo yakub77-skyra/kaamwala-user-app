@@ -13,19 +13,20 @@ import 'package:kaamwala/core/config/app_flavor.dart';
 import 'package:kaamwala/core/theme/app_theme.dart';
 import 'package:kaamwala/features/admin/screens/admin_queue_screen.dart';
 import 'package:kaamwala/features/auth/providers/auth_controller.dart';
-import 'package:kaamwala/features/auth/screens/login_screen.dart';
 import 'package:kaamwala/features/auth/screens/onboarding_screen.dart';
 import 'package:kaamwala/features/auth/screens/otp_screen.dart';
+import 'package:kaamwala/features/auth/screens/phone_entry_screen.dart';
 import 'package:kaamwala/features/auth/screens/role_selection_screen.dart';
 import 'package:kaamwala/features/auth/screens/wrong_app_screen.dart';
+import 'package:kaamwala/features/chat/screens/chat_screen.dart';
 import 'package:kaamwala/features/client/screens/booking_screen.dart';
-import 'package:kaamwala/features/client/screens/chat_screen.dart';
 import 'package:kaamwala/features/client/screens/home_screen.dart';
 import 'package:kaamwala/features/client/screens/my_bookings_screen.dart';
 import 'package:kaamwala/features/client/screens/payment_screen.dart';
 import 'package:kaamwala/features/client/screens/rate_review_screen.dart';
 import 'package:kaamwala/features/client/screens/worker_list_screen.dart';
 import 'package:kaamwala/features/client/screens/worker_profile_screen.dart';
+import 'package:kaamwala/features/notifications/screens/notifications_screen.dart';
 import 'package:kaamwala/features/shared/screens/shared_screens.dart';
 import 'package:kaamwala/features/worker/screens/job_requests_screen.dart';
 import 'package:kaamwala/features/worker/screens/worker_register_screen.dart';
@@ -58,11 +59,16 @@ String? appRedirect(
       return '/';
     case AppStage.onboarding:
       return loc == '/onboarding' ? null : '/onboarding';
-    case AppStage.login:
-      if (loc.startsWith('/login')) return null;
-      return '/login';
     case AppStage.roleSelection:
       return loc == '/role' ? null : '/role';
+    case AppStage.phoneEntry:
+      if (loc == '/login/phone') return null;
+      return '/login/phone';
+    case AppStage.otpVerification:
+      // Both the OTP screen and (for "Change number") the phone screen are
+      // allowed; anything else is sent back to the OTP screen.
+      if (loc.startsWith('/login/otp') || loc == '/login/phone') return null;
+      return '/login/otp';
     case AppStage.clientApp:
       if (loc == '/' ||
           loc.startsWith('/login') ||
@@ -97,16 +103,16 @@ final routerProvider = Provider<GoRouter>((ref) {
     routes: [
       GoRoute(path: '/', builder: (context, state) => const SplashScreen()),
       GoRoute(path: '/onboarding', builder: (_, _) => const OnboardingScreen()),
-      GoRoute(path: '/login', builder: (_, _) => const LoginScreen()),
-      GoRoute(
-        path: '/login/otp',
-        builder: (_, s) => OtpScreen(phone: s.extra as String?),
-      ),
       GoRoute(
         path: '/role',
         builder: (_, _) =>
             RoleSelectionScreen(workerOnly: flavor == AppFlavor.partner),
       ),
+      GoRoute(
+        path: '/login/phone',
+        builder: (_, _) => const PhoneEntryScreen(),
+      ),
+      GoRoute(path: '/login/otp', builder: (_, _) => const OtpScreen()),
       GoRoute(path: '/wrong-app', builder: (_, _) => const WrongAppScreen()),
       GoRoute(
         path: '/notifications',

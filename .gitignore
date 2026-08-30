@@ -1,32 +1,48 @@
-```
-# Dependencies
+# Dart / Flutter
 .dart_tool/
 .build/
+build/
 packages/
+.pub-cache/
+.kotlin/
 
-# Environment
+# Environment / secrets
 .env
 .env.local
 *.env.*
+*.local
+kaamwala/android/key.properties
+*.jks
+*.keystore
+opencode.json
+
+# Firebase service account key (sensitive)
+firebase-service-account.json
 
 # Logs and temp files
 *.log
 *.tmp
 *.swp
+*.swo
 
 # Editors
 .vscode/
 .idea/
-*.swp
-*.swo
 
-# Build outputs
-build/
+# Python virtualenv (created in repo root by mistake)
+kaamwala_env/
+
+# Generated / build outputs
+graphify-out/
 dist/
 target/
-
-# Cache directories
 .cache/
-.dart_tool/
-.pub-cache/
-```
+
+# Agent / AI tooling local state
+.agents/
+.claude/
+skills-lock.json
+
+# OS
+Thumbs.db
+.DS_Store

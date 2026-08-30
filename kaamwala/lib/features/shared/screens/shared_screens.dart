@@ -1,4 +1,7 @@
-/// Shared screens - Profile & Settings (S2) + Notifications (S1).
+/// Shared screens - Profile & Settings (S2).
+///
+/// The notification center moved to
+/// `features/notifications/screens/notifications_screen.dart` (Phase 3).
 library;
 
 import 'dart:async';
@@ -11,9 +14,9 @@ import 'package:package_info_plus/package_info_plus.dart';
 
 import 'package:kaamwala/core/theme/app_theme.dart';
 import 'package:kaamwala/core/error/failure.dart';
-import 'package:kaamwala/core/ui/kw_empty_state.dart';
 import 'package:kaamwala/features/admin/providers/admin_provider.dart';
 import 'package:kaamwala/features/auth/providers/auth_controller.dart';
+import 'package:kaamwala/features/auth/providers/onboarding_controller.dart';
 import 'package:kaamwala/features/shared/providers/shared_providers.dart';
 import 'package:kaamwala/features/shared/widgets/common_widgets.dart';
 import 'package:kaamwala/services/location_service.dart';
@@ -204,9 +207,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       ),
     );
     if (confirmed != true || !mounted) return;
+    ref.read(onboardingControllerProvider.notifier).reset();
     await ref.read(authControllerProvider.notifier).signOut();
     if (!mounted) return;
-    context.go('/login');
+    // signOut clears the profile -> router sends an unnamed user to /role,
+    // but we also reset onboarding so a fresh user lands on choose-role.
+    context.go('/role');
   }
 
   void _showHelp() {
@@ -231,10 +237,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ...const [
               (
                 'How do I book a worker?',
-                'Pick a category, choose a worker, describe the job and pay the ₹20 booking fee. The worker accepts and arrives at your address.',
+                'Pick a category, choose a worker, describe the job and pay the â‚¹20 booking fee. The worker accepts and arrives at your address.',
               ),
               (
-                'Is the ₹20 fee refundable?',
+                'Is the â‚¹20 fee refundable?',
                 'Yes - cancel while the booking is still pending for a full refund to your original payment method.',
               ),
               (
@@ -265,7 +271,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               leading: const Icon(Icons.support_agent_outlined),
               title: const Text('Contact support'),
               subtitle: const Text(
-                'support@kaamwala.com • WhatsApp +91-90000-00000',
+                'support@kaamwala.com â€¢ WhatsApp +91-90000-00000',
               ),
             ),
           ],
@@ -282,14 +288,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         content: const SingleChildScrollView(
           child: Text(
             'KaamWala respects your privacy.\n\n'
-            '• We store your phone number and name to run bookings.\n'
-            '• Your Aadhar documents are stored in an encrypted private '
+            'â€¢ We store your phone number and name to run bookings.\n'
+            'â€¢ Your Aadhar documents are stored in an encrypted private '
             'bucket. Only our verification team can view them - never '
             'customers or workers.\n'
-            '• Your work photos are public so customers can find you.\n'
-            '• Chat messages are visible only to you and the person you '
+            'â€¢ Your work photos are public so customers can find you.\n'
+            'â€¢ Chat messages are visible only to you and the person you '
             'booked / who booked you.\n'
-            '• We never sell your data.\n\n'
+            'â€¢ We never sell your data.\n\n'
             'Questions? support@kaamwala.com',
             style: TextStyle(height: 1.5),
           ),
@@ -383,7 +389,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         ),
                         if (city != null && city.isNotEmpty)
                           Text(
-                            '$city • ${auth.stage == AppStage.workerApp ? 'Worker' : 'Customer'}',
+                            '$city â€¢ ${auth.stage == AppStage.workerApp ? 'Worker' : 'Customer'}',
                             style: Theme.of(context).textTheme.bodySmall
                                 ?.copyWith(color: KwColors.muted),
                           ),
@@ -492,119 +498,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-/// S1 - live feed from the notifications table.
-class NotificationsScreen extends ConsumerWidget {
-  const NotificationsScreen({super.key});
-
-  IconData _iconFor(String type) => switch (type) {
-    'booking' => Icons.handyman_outlined,
-    'payment' => Icons.currency_rupee_outlined,
-    _ => Icons.notifications_outlined,
-  };
-
-  String _whenAgo(DateTime? t) {
-    if (t == null) return '';
-    final d = DateTime.now().difference(t);
-    if (d.inMinutes < 1) return 'now';
-    if (d.inMinutes < 60) return '${d.inMinutes}m';
-    if (d.inHours < 24) return '${d.inHours}h';
-    return '${d.inDays}d';
-  }
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final async = ref.watch(notificationsProvider);
-
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Notifications'),
-        actions: [
-          async.maybeWhen(
-            data: (s) => s.unread > 0
-                ? TextButton(
-                    onPressed: () =>
-                        ref.read(notificationsProvider.notifier).markAllRead(),
-                    child: const Text('Mark all read'),
-                  )
-                : const SizedBox.shrink(),
-            orElse: () => const SizedBox.shrink(),
-          ),
-        ],
-      ),
-      body: async.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => const KwEmptyState(
-          illustration: KwIllustration.offline,
-          title: 'Could not load notifications',
-          subtitle: 'Pull down to retry.',
-        ),
-        data: (state) => RefreshIndicator(
-          onRefresh: () async =>
-              await ref.read(notificationsProvider.notifier).refresh(),
-          child: state.isEmpty
-              ? ListView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  children: [
-                    SizedBox(
-                      height: MediaQuery.sizeOf(context).height * .7,
-                      child: const KwEmptyState(
-                        illustration: KwIllustration.bookings,
-                        title: 'No notifications yet',
-                        subtitle:
-                            'Booking updates and payment alerts appear here.',
-                      ),
-                    ),
-                  ],
-                )
-              : ListView.separated(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  padding: const EdgeInsets.all(KwSpacing.lg),
-                  itemCount: state.items.length,
-                  separatorBuilder: (_, _) =>
-                      const SizedBox(height: KwSpacing.md),
-                  itemBuilder: (context, i) {
-                    final n = state.items[i];
-                    return Card(
-                      margin: EdgeInsets.zero,
-                      color: n.isRead
-                          ? KwColors.surface
-                          : KwColors.primaryLight,
-                      child: ListTile(
-                        leading: CircleAvatar(
-                          radius: 18,
-                          backgroundColor: n.isRead
-                              ? KwColors.fill
-                              : KwColors.primary.withValues(alpha: .15),
-                          child: Icon(
-                            _iconFor(n.type.name),
-                            size: 19,
-                            color: n.isRead ? KwColors.muted : KwColors.primary,
-                          ),
-                        ),
-                        title: Text(
-                          n.title,
-                          style: TextStyle(
-                            fontWeight: FontWeight.w800,
-                            fontSize: 14,
-                            color: n.isRead ? null : KwColors.dark,
-                          ),
-                        ),
-                        subtitle: Text(n.body),
-                        trailing: Text(
-                          _whenAgo(n.createdAt),
-                          style: Theme.of(context).textTheme.labelSmall
-                              ?.copyWith(color: KwColors.muted),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-        ),
       ),
     );
   }

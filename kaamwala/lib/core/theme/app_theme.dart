@@ -33,6 +33,8 @@ abstract final class KwColors {
   static const Color greenLight = Color(0xFFE9F8EF);
   static const Color gold = Color(0xFFD97706);
   static const Color goldLight = Color(0xFFFDF3E2);
+  static const Color warning = Color(0xFFD97706);
+  static const Color warningLight = Color(0xFFFDF3E2);
   static const Color red = Color(0xFFDC2626);
   static const Color redLight = Color(0xFFFDECEC);
   static const Color blue = Color(0xFF2563EB);

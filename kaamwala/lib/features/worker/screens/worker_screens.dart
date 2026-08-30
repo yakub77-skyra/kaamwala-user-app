@@ -15,12 +15,13 @@ import 'package:kaamwala/core/error/failure.dart';
 import 'package:kaamwala/core/theme/app_theme.dart';
 import 'package:kaamwala/core/ui/kw_empty_state.dart';
 import 'package:kaamwala/core/ui/kw_icon_well.dart';
+import 'package:kaamwala/features/chat/providers/chat_providers.dart';
 import 'package:kaamwala/features/client/providers/client_providers.dart';
+import 'package:kaamwala/features/notifications/providers/notification_providers.dart';
 import 'package:kaamwala/features/worker/providers/worker_providers.dart';
 import 'package:kaamwala/features/worker/repositories/worker_repository.dart';
 import 'package:kaamwala/models/booking.dart';
 import 'package:kaamwala/services/analytics_service.dart';
-import 'package:kaamwala/services/supabase_service.dart';
 
 /// W2 - Profile under review gate. Worker cannot see jobs until approved.
 class UnderReviewScreen extends StatelessWidget {
@@ -85,9 +86,20 @@ class _WorkerDashboardScreenState extends ConsumerState<WorkerDashboardScreen> {
       appBar: AppBar(
         title: Text(firstName.isEmpty ? 'Welcome' : 'Namaste, $firstName'),
         actions: [
-          IconButton(
-            onPressed: () => context.go('/notifications'),
-            icon: const Badge(child: Icon(Icons.notifications_outlined)),
+          Consumer(
+            builder: (context, ref, _) {
+              final unread = ref.watch(notificationUnreadProvider);
+              return IconButton(
+                tooltip: 'Notifications',
+                onPressed: () => context.go('/notifications'),
+                icon: Badge(
+                  isLabelVisible: unread > 0,
+                  backgroundColor: KwColors.red,
+                  label: Text('$unread'),
+                  child: const Icon(Icons.notifications_outlined),
+                ),
+              );
+            },
           ),
         ],
       ),
@@ -414,11 +426,23 @@ class JobDetailScreen extends ConsumerWidget {
     }
     final booking = ref.watch(bookingByIdProvider(jobId!));
     return Scaffold(
-      appBar: AppBar(title: const Text('Job Detail')),
+      appBar: AppBar(
+        title: const Text('Job Detail'),
+        actions: [
+          IconButton(
+            tooltip: 'Chat with customer',
+            onPressed: () => context.push('/chat/$jobId'),
+            icon: const Icon(Icons.chat_bubble_outline_rounded),
+          ),
+        ],
+      ),
       bottomNavigationBar: booking.when(
         loading: () => const SizedBox.shrink(),
         error: (_, _) => const SizedBox.shrink(),
-        data: (b) => (b == null || b.status != BookingStatus.pending)
+        data: (b) =>
+            (b == null ||
+                (b.status != BookingStatus.pendingAcceptance &&
+                    b.status != BookingStatus.pending))
             ? const SizedBox.shrink()
             : SafeArea(
                 child: Padding(
@@ -512,6 +536,43 @@ class JobDetailScreen extends ConsumerWidget {
                 ),
                 title: Text(_whenLine(b)),
               ),
+              // ---------- job photos (Phase 2: photos upload with progress) ----------
+              if (b.photoUrls.isNotEmpty) ...[
+                const SizedBox(height: KwSpacing.sm),
+                Text(
+                  'Job photos (${b.photoUrls.length})',
+                  style: Theme.of(context).textTheme.labelSmall
+                      ?.copyWith(color: KwColors.muted),
+                ),
+                const SizedBox(height: KwSpacing.sm),
+                SizedBox(
+                  height: 88,
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: b.photoUrls.length,
+                    separatorBuilder: (_, _) =>
+                        const SizedBox(width: KwSpacing.sm),
+                    itemBuilder: (context, i) => ClipRRect(
+                      borderRadius: BorderRadius.circular(KwRadius.sm),
+                      child: Image.network(
+                        b.photoUrls[i],
+                        width: 88,
+                        height: 88,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, _, _) => Container(
+                          width: 88,
+                          height: 88,
+                          color: KwColors.fill,
+                          child: const Icon(
+                            Icons.broken_image_outlined,
+                            size: 20,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
               const Divider(),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -613,7 +674,9 @@ class _ActiveJobScreenState extends ConsumerState<ActiveJobScreen> {
 
   Future<void> _checkLocationSharing() async {
     final booking = ref.read(bookingByIdProvider(widget.bookingId)).value;
-    if (booking != null && booking.status == BookingStatus.traveling && booking.isSharingLocation) {
+    if (booking != null &&
+        booking.status == BookingStatus.traveling &&
+        booking.isSharingLocation) {
       _startLocationSharing();
     }
   }
@@ -622,7 +685,11 @@ class _ActiveJobScreenState extends ConsumerState<ActiveJobScreen> {
     if (!await Geolocator.isLocationServiceEnabled()) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Location services are disabled. Enable them to share location.')),
+          const SnackBar(
+            content: Text(
+              'Location services are disabled. Enable them to share location.',
+            ),
+          ),
         );
       }
       return;
@@ -631,17 +698,25 @@ class _ActiveJobScreenState extends ConsumerState<ActiveJobScreen> {
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
     }
-    if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
+    if (permission == LocationPermission.denied ||
+        permission == LocationPermission.deniedForever) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Location permission is required to share live location.')),
+          const SnackBar(
+            content: Text(
+              'Location permission is required to share live location.',
+            ),
+          ),
         );
       }
       return;
     }
     setState(() => _sharingLocation = true);
     _updateLocation();
-    _locationTimer = Timer.periodic(const Duration(seconds: 30), (_) => _updateLocation());
+    _locationTimer = Timer.periodic(
+      const Duration(seconds: 30),
+      (_) => _updateLocation(),
+    );
   }
 
   Future<void> _stopLocationSharing() async {
@@ -655,15 +730,19 @@ class _ActiveJobScreenState extends ConsumerState<ActiveJobScreen> {
   Future<void> _updateLocation() async {
     try {
       final position = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+        ),
       );
       if (!mounted) return;
       setState(() => _currentPosition = position);
-      await ref.read(bookingsRepoProvider).updateLiveLocation(
-        bookingId: widget.bookingId,
-        lat: position.latitude,
-        lng: position.longitude,
-      );
+      await ref
+          .read(bookingsRepoProvider)
+          .updateLiveLocation(
+            bookingId: widget.bookingId,
+            lat: position.latitude,
+            lng: position.longitude,
+          );
     } catch (e) {
       // Silently fail - best effort
     }
@@ -680,7 +759,8 @@ class _ActiveJobScreenState extends ConsumerState<ActiveJobScreen> {
       // Start/stop location sharing based on status
       if (next == BookingStatus.traveling) {
         _startLocationSharing();
-      } else if (b.status == BookingStatus.traveling && next != BookingStatus.traveling) {
+      } else if (b.status == BookingStatus.traveling &&
+          next != BookingStatus.traveling) {
         _stopLocationSharing();
       }
     }
@@ -700,6 +780,26 @@ class _ActiveJobScreenState extends ConsumerState<ActiveJobScreen> {
       appBar: AppBar(
         title: const Text('Active Job'),
         actions: [
+          Consumer(
+            builder: (context, ref, _) {
+              final unread =
+                  ref.watch(chatUnreadProvider(widget.bookingId)).valueOrNull ??
+                  0;
+              return IconButton(
+                tooltip: 'Chat with customer',
+                onPressed: () async {
+                  await context.push('/chat/${widget.bookingId}');
+                  ref.invalidate(chatUnreadProvider(widget.bookingId));
+                },
+                icon: Badge(
+                  isLabelVisible: unread > 0,
+                  backgroundColor: KwColors.red,
+                  label: Text('$unread'),
+                  child: const Icon(Icons.chat_bubble_outline_rounded),
+                ),
+              );
+            },
+          ),
           if (_sharingLocation)
             IconButton(
               icon: const Icon(Icons.location_on, color: KwColors.green),
@@ -754,8 +854,12 @@ class _ActiveJobScreenState extends ConsumerState<ActiveJobScreen> {
                         Row(
                           children: [
                             Icon(
-                              _sharingLocation ? Icons.location_on : Icons.location_off,
-                              color: _sharingLocation ? KwColors.green : KwColors.muted,
+                              _sharingLocation
+                                  ? Icons.location_on
+                                  : Icons.location_off,
+                              color: _sharingLocation
+                                  ? KwColors.green
+                                  : KwColors.muted,
                             ),
                             const SizedBox(width: KwSpacing.md),
                             Expanded(
@@ -763,19 +867,25 @@ class _ActiveJobScreenState extends ConsumerState<ActiveJobScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    _sharingLocation ? 'Sharing Live Location' : 'Share Live Location',
-                                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                                      fontWeight: FontWeight.w700,
-                                      color: _sharingLocation ? KwColors.green : KwColors.ink,
-                                    ),
+                                    _sharingLocation
+                                        ? 'Sharing Live Location'
+                                        : 'Share Live Location',
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .titleSmall
+                                        ?.copyWith(
+                                          fontWeight: FontWeight.w700,
+                                          color: _sharingLocation
+                                              ? KwColors.green
+                                              : KwColors.ink,
+                                        ),
                                   ),
                                   Text(
                                     _sharingLocation
                                         ? 'Client can see your real-time location'
                                         : 'Let the client track your arrival',
-                                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                      color: KwColors.muted,
-                                    ),
+                                    style: Theme.of(context).textTheme.bodySmall
+                                        ?.copyWith(color: KwColors.muted),
                                   ),
                                 ],
                               ),
@@ -789,7 +899,7 @@ class _ActiveJobScreenState extends ConsumerState<ActiveJobScreen> {
                                   _stopLocationSharing();
                                 }
                               },
-                              activeColor: KwColors.green,
+                              activeThumbColor: KwColors.green,
                             ),
                           ],
                         ),
@@ -803,22 +913,24 @@ class _ActiveJobScreenState extends ConsumerState<ActiveJobScreen> {
                             ),
                             child: Row(
                               children: [
-                                const Icon(Icons.my_location, size: 18, color: KwColors.blue),
+                                const Icon(
+                                  Icons.my_location,
+                                  size: 18,
+                                  color: KwColors.blue,
+                                ),
                                 const SizedBox(width: KwSpacing.sm),
                                 Expanded(
                                   child: Text(
                                     'Lat: ${_currentPosition!.latitude.toStringAsFixed(6)}, '
                                     'Lng: ${_currentPosition!.longitude.toStringAsFixed(6)}',
-                                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                      fontFamily: 'monospace',
-                                    ),
+                                    style: Theme.of(context).textTheme.bodySmall
+                                        ?.copyWith(fontFamily: 'monospace'),
                                   ),
                                 ),
                                 Text(
                                   'Updated ${DateFormat('HH:mm:ss').format(DateTime.now())}',
-                                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                                    color: KwColors.muted,
-                                  ),
+                                  style: Theme.of(context).textTheme.labelSmall
+                                      ?.copyWith(color: KwColors.muted),
                                 ),
                               ],
                             ),

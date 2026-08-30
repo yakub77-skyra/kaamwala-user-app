@@ -81,10 +81,7 @@ class HomeScreen extends ConsumerWidget {
                     ),
                   ),
                   IconButton(
-                    onPressed: () async {
-                      await context.push('/notifications');
-                      ref.invalidate(unreadCountProvider);
-                    },
+                    onPressed: () => context.push('/notifications'),
                     style: IconButton.styleFrom(
                       backgroundColor: KwColors.surface,
                       shape: const CircleBorder(
@@ -92,12 +89,9 @@ class HomeScreen extends ConsumerWidget {
                       ),
                     ),
                     icon: Badge(
-                      isLabelVisible: unread.maybeWhen(
-                        data: (n) => n > 0,
-                        orElse: () => false,
-                      ),
+                      isLabelVisible: unread > 0,
                       backgroundColor: KwColors.red,
-                      label: Text('${unread.value ?? 0}'),
+                      label: Text('$unread'),
                       child: const Icon(Icons.notifications_outlined, size: 22),
                     ),
                   ),
